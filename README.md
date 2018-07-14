@@ -2,4 +2,4 @@
 
 ![](lincoln.png)
 
-A neural net library by the people, for the people.
+A Deep Learning library by the people, for the people.
