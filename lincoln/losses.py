@@ -15,8 +15,15 @@ class Loss:
     def forward(self, input: Tensor, targets: Tensor) -> float:
         raise NotImplementedError()
 
-    def backward(self) -> Tensor:
+    def gradient(self) -> Tensor:
+        """ Gradient of the loss with respect to it's inputs """
         raise NotImplementedError()
+
+    def backward(self) -> Tensor:
+        backward_grad = self.gradient()
+        # Calculate gradients for the network
+        grad = self.network.backward(backward_grad)
+        return grad
         
     def __call__(self, input: Tensor, targets: Tensor) -> float:
         return self.forward(input, targets)
@@ -27,7 +34,7 @@ class LogLoss(Loss):
     def __init__(self, network: typing.Type[Layer], eta=1e-9):
         super().__init__(network)
         
-        # Small parameter to avoid explosions when our probabilities get small
+        # Small parameter to avoid explosions when our probabilities get near 0 or 1
         # A better way to do this is use log probabilities everywhere
         self.eta = eta
         
@@ -39,15 +46,14 @@ class LogLoss(Loss):
         loss = torch.sum(-y*torch.log(p + self.eta) - (1-y)*torch.log(1 - p + self.eta))
         return loss.item()
     
-    def backward(self) -> None:
+    def gradient(self) -> Tensor:
+        """ Gradient of the loss with respect to it's inputs """
         y, p = self.labels, self.last_input
-        n = y.shape[0]
+        N = y.shape[0]
         
-        backward_grad = torch.sum(-y/(p + self.eta) + (1-y)/(1 - p  + self.eta), dim=1).view(n, -1)
+        backward_grad = torch.sum(-y/(p + self.eta) + (1-y)/(1 - p  + self.eta), dim=1).view(N, -1)
         
-        # Calculate gradients for the network
-        self.network.backward(backward_grad)
-        return None
-    
+        return backward_grad
+
     def __repr__(self):
         return f"LogLoss"
