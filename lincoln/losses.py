@@ -57,3 +57,26 @@ class LogLoss(Loss):
 
     def __repr__(self):
         return f"LogLoss"
+    
+    
+class LogSigmoidLoss(Loss):
+    def __init__(self, network):
+        super().__init__(network)
+        
+    def forward(self, input: Tensor, labels: Tensor) -> float:
+        
+        # Here we're assuming z is a log-probability
+        self.last_input = z = self.network(input)
+        self.labels = y = labels
+        
+        loss = torch.sum(-y*z - (1-y)*torch.log(1-torch.exp(z)))
+        return loss.item()
+    
+    def gradient(self) -> Tensor:
+        y, z = self.labels, self.last_input
+        n = y.shape[0]
+        exp_z = torch.exp(z)
+        
+        grad = torch.sum(-y + (1-y)*exp_z/(1 - exp_z), dim=1).view(n, -1)
+        
+        return grad
