@@ -1,18 +1,19 @@
 import typing
-from typing import Tuple
+from typing import Tuple, Callable
 
 import numpy as np
+from numpy import ndarray as array
 import torch
 from torch import Tensor
 
-from .layers import Layer
+from .layers import Layer, NeuralNetwork
 from .losses import Loss, LogLoss
 from .optimizers import SGD
 from .metrics import accuracy
 
 
-def generate_batches(features: np.ndarray, 
-                     labels: np.ndarray,
+def generate_batches(features: array, 
+                     labels: array,
                      size: int = 32,
                      shuffle: bool = True) -> Tuple[Tensor, Tensor]:
     
@@ -33,22 +34,18 @@ def generate_batches(features: np.ndarray,
         yield out_features, out_labels
 
 class Logistic:
-    def __init__(self, network: typing.Type[Layer], 
+    def __init__(self, network: NeuralNetwork, 
                        loss: Loss=LogLoss, 
-                       optimizer: typing.Any=SGD, 
-                       metric: typing.Callable=accuracy, 
-                       batch_gen: typing.Callable=generate_batches):
+                       optimizer: SGD=SGD, 
+                       metric: Callable=accuracy, 
+                       batch_gen: Callable=generate_batches):
         self.network = network
         if loss is not LogLoss:
             self.loss = loss
         else:
             self.loss = LogLoss(network)
         
-        if optimizer is not SGD:
-            self.optim = optimizer
-        else:
-            self.optim = optimizer(network)
-        
+        self.optim = optimizer        
         self.metric = metric
         self.batch_gen = batch_gen
         
@@ -66,10 +63,10 @@ class Logistic:
                 steps += 1
                 running_loss += self.loss(x, y)
                 self.loss.backward()
-                self.optim.step()
+                self.optim.step(self.network)
             
                 if steps % print_every == 0:
-                    ps = self.network(torch.from_numpy(features).type(torch.FloatTensor))
+                    ps = self.network.forward(torch.from_numpy(features).type(torch.FloatTensor))
                     if log_ps is True:
                         ps = torch.exp(ps)
                     predictions = np.round(ps.numpy())
