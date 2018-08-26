@@ -190,6 +190,34 @@ class Sigmoid(Layer):
         return f"Sigmoid"
 
 
+class LogSigmoid(Layer):
+    def __init__(self):
+        super().__init__()
+        
+    def forward(self, input: Tensor) -> Tensor:
+        
+        if input.dim() != 2:
+            raise DimensionError(f"Tensor should have dimension 2, instead it has dimension {input.dim()}")
+        
+        self.last_input = input
+        self.output = input - torch.log(torch.exp(input) + 1)
+        return self.output
+    
+    def backward(self, in_grad: Tensor) -> Tensor:
+        
+        if not hasattr(self, 'output'):
+            message = "The forward method must be run before the backward method"
+            raise lnc.exc.BackwardError(message)  
+        elif self.output.shape != in_grad.shape:
+            message = (f"Two tensors should have the same shape; instead, first Tensor's shape "
+                       f"is {in_grad.shape} and second Tensor's shape is {self.output.shape}.")
+            raise MatchError(message)
+        
+        backward_grad = (1 - torch.exp(self.output))*in_grad
+        
+        return backward_grad    
+
+
 class Dense(Sequential):
 
 

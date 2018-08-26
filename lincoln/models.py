@@ -73,61 +73,6 @@ class Logistic:
                     if log_ps is True:
                         ps = torch.exp(ps)
                     predictions = np.round(ps.numpy())
-                    acc = accuracy(predictions, labels)
+                    acc = accuracy(predictions, labels)         
                     print(f"Epoch {e+1}.. Train loss: {running_loss/print_every:.4f}.. ", f"Accuracy: {acc*100:.3f}%")
-                    running_loss = 0
-
-class Classifier:
-    def __init__(self, network: typing.Type[Layer], 
-                       loss: Loss=LogLoss, 
-                       optimizer: typing.Any=SGD, 
-                       metric: typing.Callable=accuracy, 
-                       batch_gen: typing.Callable=generate_batches,
-                       valid_gen: typing.Callable=None):
-        self.network = network
-        if loss is not LogLoss:
-            self.loss = loss
-        else:
-            self.loss = LogLoss(network)
-        
-        if optimizer is not SGD:
-            self.optim = optimizer
-        else:
-            self.optim = optimizer(network)
-        
-        self.metric = metric
-        self.batch_gen = batch_gen
-        self.valid_gen = valid_gen
-        
-    def fit(self, features: np.ndarray = None, labels: np.ndarray = None, 
-                  epochs: int=500, print_every: int=100, 
-                  batch_size: int=32, log_ps=False, 
-                  topk=5)-> None:
-        steps = 0
-        if features is not None:
-            batch_generator = self.batch_gen(features, labels, size=batch_size)
-        else:
-            batch_generator = self.batch_gen
-        
-        for e in range(epochs):
-            running_loss = 0
-
-            for x, y in batch_generator:
-                steps += 1
-                running_loss += self.loss(x, y)
-                self.loss.backward()
-                self.optim.step()
-            
-                if steps % print_every == 0:
-                    if self.valid_gen is None:
-                        ps = self.network(x)
-                        metric = self.metric(ps, y)
-                    else:
-                        valid_metric = 0
-                        for ii, (x, y) in enumerate(self.valid_gen):
-                            ps = self.network(x)
-                            valid_metric += self.metric(ps, y)
-                        metric = valid_metric/(ii+1)
-
-                    print(f"Epoch {e+1}.. Train loss: {running_loss/print_every:.4f}.. ", f"Metric: {metric:.3f}")
                     running_loss = 0
