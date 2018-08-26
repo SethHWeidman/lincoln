@@ -53,7 +53,8 @@ class Layer(object):
         return input_grad
       
     def _param_grads(self) -> Tensor:
-
+        
+        self.param_grads = []
         for operation in self.operations:
             if issubclass(operation.__class__, ParamOperation):
                 self.param_grads.append(operation.param_grad)      
@@ -120,7 +121,7 @@ class LayerBlock(object):
         return f"{self.__class__.__name__}(\n  " + ",\n  ".join(layer_strs) + ")"
     
 
-from .loss import Loss, MeanSquaredError
+from .losses import Loss, MeanSquaredError
 class NeuralNetwork(LayerBlock):
     '''
     Just a list of layers that runs forwards and backwards
