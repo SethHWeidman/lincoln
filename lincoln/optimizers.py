@@ -1,12 +1,12 @@
 import typing
-from .layers import Layer
-
+from .layers import Layer, NeuralNetwork
 
 class SGD:
-    def __init__(self, network: typing.Type[Layer], lr: float = 0.003):
-        self.network = network
+    def __init__(self,  
+                 lr: float = 0.003):
         self.lr = lr
         
-    def step(self):
-        for param, grad in zip(self.network.parameters(), self.network.grads()):
-            param.sub_(self.lr*grad)
+    def step(self, network: NeuralNetwork):
+        for layer in network.layers:
+            for param, grad in zip(layer.params, layer.param_grads):
+                param.add_(self.lr*grad)
