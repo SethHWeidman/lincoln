@@ -1,15 +1,7 @@
-import numpy as np
+import torch
 from torch import Tensor
 
 from typing import Tuple
-
-
-def standardize(arr: np.ndarray) -> np.ndarray:
-    
-    means = arr.mean(axis=0)
-    stds = arr.std(axis=0)
-    
-    return (arr - means) / stds
 
 
 def to_2d(a: Tensor, 
@@ -59,6 +51,20 @@ def generate_batch(X: Tensor,
     
     return X_batch, y_batch
 
+
+def generate_batches(X: Tensor, 
+                     y: Tensor,
+                     size: int = 32) -> Batch:
+    
+    if X.shape[0] != y.shape[0]:
+        raise ValueError('feature and label arrays must have the same first dimension')
+    
+    N = X.shape[0]
+    
+    for ii in range(0, N, size):
+        X_batch, y_batch = X[ii:ii+size], y[ii:ii+size]
+        
+        yield X_batch, y_batch
 
 def assert_same_shape(output: Tensor, 
                       output_grad: Tensor):

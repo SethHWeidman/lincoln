@@ -1,12 +1,26 @@
 import typing
-from .layers import Layer, NeuralNetwork
+from torch import Tensor
+from .layers import Layer
 
-class SGD:
+
+class Optimizer(object):
+    def __init__(self):
+        pass
+        
+    def step(self, layer: Layer) -> None:
+        assert len(layer.params) == len(layer.param_grads)
+        for param, grad in zip(layer.params, layer.param_grads):
+            self._update_rule(param, grad)
+            
+    def _update_rule(self, param: Tensor, grad: Tensor):
+        raise NotImplementedError()
+
+
+class SGD(Optimizer):
     def __init__(self,  
-                 lr: float = 0.003):
+                 lr: float = 0.003) -> None:
+        super().__init__()
         self.lr = lr
         
-    def step(self, network: NeuralNetwork):
-        for layer in network.layers:
-            for param, grad in zip(layer.params, layer.param_grads):
-                param.add_(self.lr*grad)
+    def _update_rule(self, param: Tensor, grad: Tensor) -> None:
+        param.sub_(self.lr*grad)

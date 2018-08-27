@@ -3,7 +3,6 @@ import typing
 import torch
 from torch import Tensor
 
-from .layers import Layer
 from .exc import MatchError
 from .utils import assert_same_shape
 
@@ -51,7 +50,8 @@ class LogSigmoidLoss(Loss):
     def __init__(self):
         super().__init__()
         
-    def loss_gradient(self, predictions: Tensor, 
+    def loss_gradient(self, 
+                      predictions: Tensor, 
                 target: Tensor) -> float:
         
         
