@@ -6,12 +6,34 @@ from .utils import assert_same_shape
 class Operation(object):
 
     def __init__(self):
-        raise NotImplementedError()
+        pass
     
-    def forward(self, input_: Tensor) -> Tensor:
-        raise NotImplementedError()
+
+    def forward(self, 
+                input_: Tensor):
+        self.input_ = input_
+        
+        self.output = self._compute_output()
+
+        return self.output
+    
+
+    def _input_grad(self, output_grad: Tensor) -> Tensor:
+        assert_same_shape(self.output, output_grad)       
+        
+        input_grad = self._compute_grads(output_grad)
+               
+        assert_same_shape(self.input_, input_grad)
+        return input_grad
+    
 
     def backward(self, output_grad: Tensor) -> Tensor:
+        return self._input_grad(output_grad)
+
+    def _compute_output(self, input_: Tensor) -> Tensor:
+        raise NotImplementedError()
+    
+    def _compute_grads(self, output_grad: Tensor) -> Tensor:
         raise NotImplementedError()
         
 
@@ -21,6 +43,14 @@ class ParamOperation(Operation):
         super().__init__()
         self.param = param
         
+    def backward(self, output_grad: Tensor) -> Tensor:
+        
+        self.param_grad = self._param_grad(output_grad)
+        
+        assert_same_shape(self.param, self.param_grad)
+        
+        return self._input_grad(output_grad)
+        
     def _param_grad(self, output_grad: Tensor) -> Tensor:
         raise NotImplementedError()
 
@@ -28,81 +58,34 @@ class ParamOperation(Operation):
 class WeightMultiply(ParamOperation):
 
     def __init__(self, 
-                 W: Tensor, 
-                 param_name: str='W'):
-        self.param = W
-        self.param_name = param_name
+                 W: Tensor):
+        super().__init__(W)
     
-    def forward(self, 
-                input_: Tensor):
-        self.input_ = input_
-
-        # Lines specific to this class
-        assert self.input_.shape[1] == self.param.shape[0], \
-        "Mismatch of shapes in WeightMultiply operation"
-        self.output = torch.mm(input_, self.param)
-
-        return self.output
-
-    def backward(self, 
-                 output_grad: Tensor):
-        assert_same_shape(self.output, output_grad)
-
-        # Lines specific to this class        
-        input_grad = torch.mm(output_grad, self.param.transpose(0, 1))
-        
-        self.param_grad = self._param_grad(output_grad)
-        
-        assert_same_shape(self.input_, input_grad)
-        return input_grad
+    def _compute_output(self):
+        return torch.mm(self.input_, self.param)
+    
+    def _compute_grads(self, output_grad):
+        return torch.mm(output_grad, self.param.transpose(0, 1))
     
     def _param_grad(self, 
                     output_grad: Tensor):
-
-        # Lines specific to this class
-        param_grad = torch.mm(self.input_.transpose(0, 1), output_grad)
         
-        assert_same_shape(self.param, param_grad)
-        return param_grad
+        return torch.mm(self.input_.transpose(0, 1), output_grad)
     
 
 class BiasAdd(ParamOperation):
 
     def __init__(self, 
-                 B: Tensor,
-                 param_name: str='B'):
-        self.param = B
-        self.param_name = param_name
-    
-    def forward(self, 
-                input_: Tensor):
-        self.input_ = input_
-        
-        # Lines specific to this class        
-        assert self.input_.shape[1] == self.param.shape[1], \
-        "Mismatch of shapes in BiasAdd operation"
-        self.output = torch.add(self.input_, self.param)
-        
-        return self.output
+                 B: Tensor):
+        super().__init__(B)
 
-    def backward(self, 
-                 output_grad: Tensor):
-        assert_same_shape(self.output, output_grad)
-        
-        # Lines specific to this class 
-        input_grad = torch.ones_like(self.input_) * output_grad
-        
-        self.param_grad = self._param_grad(output_grad)
-        
-        assert_same_shape(self.input_, input_grad)
-        return input_grad
-    
+    def _compute_output(self):
+        return torch.add(self.input_, self.param)      
+
+    def _compute_grads(self, output_grad):
+        return torch.ones_like(self.input_) * output_grad   
+
     def _param_grad(self, 
-                   output_grad: Tensor):
- 
-        # Lines specific to this class
+                    output_grad: Tensor):
         param_grad = torch.ones_like(self.param) * output_grad       
-        param_grad = torch.sum(param_grad, dim=0).reshape(1, param_grad.shape[1])
-        
-        assert_same_shape(self.param, param_grad)
-        return param_grad
+        return torch.sum(param_grad, dim=0).reshape(1, param_grad.shape[1])

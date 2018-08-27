@@ -61,7 +61,7 @@ class LogSigmoidLoss(Loss):
         N = target.shape[0]        
         self.loss_grad = torch.sum(-target + (1-target)*exp_z/(1 - exp_z), dim=1).view(N, -1)
         
-        assert_same_shape(prediction, self.loss_grad)
+        assert_same_shape(predictions, self.loss_grad)
         
         return loss.item()
     
