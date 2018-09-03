@@ -2,9 +2,11 @@
 *.pyc*
 *.ipynb_checkpoints*
 *.DS_Store*
+*.c
+*.so
+
+
 *data/*
 
 *.pt
 *ubyte
-*.c
-*.so
