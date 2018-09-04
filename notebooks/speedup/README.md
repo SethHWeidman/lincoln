@@ -8,5 +8,13 @@ Followed [here](https://stackoverflow.com/questions/14657375/cython-fatal-error-
 
 Instructions:
 
-1. `python setup.py build_ext --inplace`
+1. `python setup.py build_ext --inplace` (necessary for Cython)
 2. `python test_conv.py`
+
+You should see the following output:
+
+```
+Running iteration with batch size 10
+One iteration with class Conv2D 4.031 seconds
+One iteration with class Conv2D_c 0.7731 seconds
+```

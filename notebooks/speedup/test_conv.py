@@ -5,7 +5,6 @@ sys.path.append("/Users/seth/development/lincoln/")
 import time
 
 import numpy as np
-from numba import jit
 
 from torch import Tensor
 import torch
@@ -179,23 +178,24 @@ class Conv2D_c(ParamOperation):
 def main(fil: Tensor,
          imgs: Tensor):
 
+    print("Running iteration with batch size",
+        imgs.shape[0])
+
+    def _test_conv_class(class_obj):
+        start = time.time()
+        out = class_obj.forward(imgs)
+        out_grad = torch.empty_like(out).uniform_(-1, 1)
+        class_obj.backward(out_grad)
+        end = time.time()
+        print("One iteration with class", class_obj.__class__.__name__,
+              round(end - start, 4), "seconds")
+        return None
+
     a = Conv2D(fil)
-    start = time.time()
-    out = a.forward(imgs)
-    out_grad = torch.empty_like(out).uniform_(-1, 1)
-    a.backward(out_grad)
-    end = time.time()
-    print("Forward took", round(end - start, 4), "seconds")
-
     b = Conv2D_c(fil)
-    start = time.time()
-    out = b.forward(imgs)
-    out_grad = torch.empty_like(out).uniform_(-1, 1)
-    b.backward(out_grad)
-    end = time.time()
-    print("Forward for Cython class took\n",
-          round(end - start, 4), "seconds")
 
+    _test_conv_class(a)
+    _test_conv_class(b)
 
 if __name__=="__main__":
     fil = Tensor(torch.empty(3, 3).uniform_(-1, 1))
