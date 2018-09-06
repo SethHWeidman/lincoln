@@ -25,7 +25,7 @@ class Layer(object):
         
     def forward(self, input_: Tensor) -> Tensor:
         if self.first:
-            self._setup_layer(input_.shape[1])
+            self._setup_layer(input_.shape[-1])
             self.first = False            
         self.input_ = input_
         
