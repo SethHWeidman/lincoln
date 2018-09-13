@@ -12,7 +12,7 @@ class Operation(object):
     def forward(self, input_: Tensor):
         self.input_ = input_
 
-        self.output = self._output(input_)
+        self.output = self._output()
 
         return self.output
 
@@ -31,7 +31,7 @@ class Operation(object):
         self.input_grad = self._input_grad(output_grad)
 
 
-    def _output(self, input_: Tensor) -> Tensor:
+    def _output(self) -> Tensor:
         raise NotImplementedError()
 
 
@@ -61,8 +61,8 @@ class WeightMultiply(ParamOperation):
         super().__init__(W)
 
 
-    def _output(self, input_: Tensor) -> Tensor:
-        return torch.mm(input_, self.param)
+    def _output(self) -> Tensor:
+        return torch.mm(self.input_, self.param)
 
 
     def _input_grad(self, output_grad: Tensor) -> Tensor:
@@ -80,8 +80,8 @@ class BiasAdd(ParamOperation):
         super().__init__(B)
 
 
-    def _output(self, input_: Tensor) -> Tensor:
-        return torch.add(input_, self.param)
+    def _output(self) -> Tensor:
+        return torch.add(self.input_, self.param)
 
 
     def _input_grad(self, output_grad: Tensor) -> Tensor:
