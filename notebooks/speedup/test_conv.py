@@ -21,14 +21,17 @@ class Conv2D(ParamOperation):
         self.param_size = param.shape[0]
         self.param_pad = self.param_size // 2
 
+
     def _pad_1d_obs(self, obs: Tensor) -> Tensor:
         z = torch.Tensor([0])
         z = z.repeat(self.param_pad)
         return torch.cat([z, obs, z])
 
+
     def _pad_1d(self, inp: Tensor) -> Tensor:
         outs = [self._pad_1d_obs(obs) for obs in inp]
         return torch.stack(outs)
+
 
     def _pad_2d_obs(self,
                     inp: Tensor):
@@ -37,10 +40,12 @@ class Conv2D(ParamOperation):
         other = torch.zeros(self.param_pad, inp.shape[0] + self.param_pad * 2)
         return torch.cat([other, inp_pad, other])
 
+
     def _pad_2d(self, inp: Tensor):
 
         outs = [self._pad_2d_obs(obs) for obs in inp]
         return torch.stack(outs)
+
 
     def _compute_output_obs(self,
                             obs: Tensor):
@@ -58,10 +63,12 @@ class Conv2D(ParamOperation):
                         out[o_w][o_h] += self.param[p_w][p_h] * obs_pad[o_w+p_w][o_h+p_h]
         return out
 
+
     def _output(self):
 
         outs = [self._compute_output_obs(obs) for obs in self.input_]
         return torch.stack(outs)
+
 
     def _compute_grads_obs(self,
                            input_obs: Tensor,
@@ -78,6 +85,7 @@ class Conv2D(ParamOperation):
                         * self.param[p_w][p_h]
 
         return input_grad
+
 
     def _input_grad(self, output_grad: Tensor) -> Tensor:
 
