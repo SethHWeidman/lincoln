@@ -108,5 +108,3 @@ class NeuralNetwork(LayerBlock):
             if (e+1) % eval_every == 0:
                 loss = self.forward_loss(X_test, y_test)
                 print(f"Validation loss after {e+1} epochs is {loss:.3f}")
-
-  
