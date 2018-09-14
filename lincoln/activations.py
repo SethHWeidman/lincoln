@@ -2,7 +2,7 @@ import torch
 from torch import Tensor
 
 from .operations import Operation
-from .utils import assert_same_shape
+from .exc import assert_same_shape
 
 
 class Activation(Operation):

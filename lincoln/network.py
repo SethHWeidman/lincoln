@@ -67,19 +67,19 @@ class NeuralNetwork(LayerBlock):
                      y_batch: Tensor) -> float:
         
         prediction = self.forward(X_batch)
-        return self.loss.loss_gradient(prediction, y_batch)
+        return self.loss.forward(prediction, y_batch)
         
     def train_batch(self, 
                     X_batch: Tensor,
                     y_batch: Tensor) -> float:
         
-        loss = self.forward_loss(X_batch, y_batch)
+        batch_loss = self.forward_loss(X_batch, y_batch)
         
-        self.backward(self.loss.loss_grad)
+        self.backward(self.loss.backward())
         
         self.update_params()
          
-        return loss
+        return batch_loss
 
     def update_params(self) -> None:
 
