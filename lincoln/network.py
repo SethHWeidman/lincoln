@@ -92,7 +92,7 @@ class NeuralNetwork(LayerBlock):
             eval_every: int=10,
             batch_size: int=32,
             seed: int = 1,
-            single_output: bool=False)-> None:
+            single_output: bool = False)-> None:
 
         if single_output:
             y_train, y_test = to_2d(y_train, "col"), to_2d(y_test, "col")
