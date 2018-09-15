@@ -1,7 +1,7 @@
 import torch
 from torch import Tensor
 
-from .exc import assert_same_shape, assert_dim
+from .utils import assert_same_shape, assert_dim
 
 __all__ = ["WeightMultiply", "BiasAdd", "Sigmoid", "LogSigmoid", "Softmax", "LogSoftmax", "ReLU"]
 
