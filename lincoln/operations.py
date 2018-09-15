@@ -1,10 +1,9 @@
 import torch
 from torch import Tensor
 
-from .utils import assert_same_shape, assert_dim
+from .exc import assert_same_shape, assert_dim
 
 __all__ = ["WeightMultiply", "BiasAdd", "Sigmoid", "LogSigmoid", "Softmax", "LogSoftmax", "ReLU"]
-
 
 class Operation(object):
 
@@ -32,12 +31,14 @@ class Operation(object):
 
 
     def _compute_grads(self, output_grad: Tensor) -> Tensor:
+
         self.input_grad = self._input_grad(output_grad)
 
+        assert_same_shape(self.input, self.input_grad)
+        return self.input_grad
 
     def _output(self) -> Tensor:
         raise NotImplementedError()
-
 
     def _input_grad(self, output_grad: Tensor) -> Tensor:
         raise NotImplementedError()
@@ -63,11 +64,15 @@ class ParamOperation(Operation):
         super().__init__()
         self.param = param
 
+    def backward(self, output_grad: Tensor) -> Tensor:
 
-    def _compute_grads(self, output_grad: Tensor) -> Tensor:
+        assert_same_shape(self.output, output_grad)
+
         self.input_grad = self._input_grad(output_grad)
         self.param_grad = self._param_grad(output_grad)
 
+        assert_same_shape(self.input, self.input_grad)
+        return self.input_grad
 
     def _param_grad(self, output_grad: Tensor) -> Tensor:
         raise NotImplementedError()
@@ -111,8 +116,127 @@ class BiasAdd(ParamOperation):
         return torch.sum(param_grad, dim=0).reshape(1, param_grad.shape[1])
 
 
-class Conv2D_Op(ParamOperation):
+class Sigmoid(Operation):
+    '''
+    Sigmoid activation function
+    '''
+    def __init__(self) -> None:
+        super().__init__()
 
+
+    def _output(self) -> Tensor:
+        return 1.0/(1.0+torch.exp(-1.0 * self.input))
+
+
+    def _input_grad(self, output_grad: Tensor) -> Tensor:
+        # Lines specific to this class
+        sigmoid_backward = self.output * (1.0 - self.output)
+        input_grad = sigmoid_backward * output_grad
+        return input_grad
+
+    def __repr__(self):
+        return "Sigmoid"
+
+
+class ReLU(Operation):
+    def __init__(self):
+        super().__init__()
+
+    def _output(self) -> Tensor:
+        self.output = torch.clamp(self.input, 0, 1e5)
+        return self.output
+
+    def _input_grad(self, output_grad: Tensor) -> Tensor:
+        relu_backward = (self.output > 0).type(self.output.dtype)
+        return relu_backward * output_grad
+
+    def __repr__(self):
+        return "ReLU"
+
+
+class Flatten(Operation):
+    def __init__(self):
+        super().__init__()
+
+    def _output(self) -> Tensor:
+        return self.input.view(self.input.shape[0], -1)
+
+    def _input_grad(self, output_grad: Tensor) -> Tensor:
+        return output_grad.view(*self.last_input.shape)
+
+    def __repr__(self):
+        return "Flatten"
+
+
+class LogSigmoid(Operation):
+    def __init__(self):
+        super().__init__()
+
+    def _output(self) -> Tensor:
+        self.output = self.input - torch.log(torch.exp(self.input) + 1)
+        return self.output
+
+    def _input_grad(self, output_grad: Tensor) -> Tensor:
+        return (1 - torch.exp(self.output))*output_grad
+
+    def __repr__(self):
+        return "LogSigmoid"
+
+
+class Softmax(Operation):
+    def __init__(self):
+        super().__init__()
+
+    def _output(self) -> Tensor:
+        self.output = torch.exp(self.input) / torch.sum(torch.exp(self.input), dim=1).view(n, 1)
+        return self.output
+
+    def _input_grad(self, output_grad: Tensor) -> Tensor:
+        ps = self.output
+        N, M = ps.shape[0], ps.shape[1]
+        batch_jacobian = torch.zeros((N, M, M))
+
+        for ii, p in enumerate(ps):
+            batch_jacobian[ii,:,:] = torch.diag(p) - torch.ger(p, p)
+
+        backward_grad = torch.bmm(output_grad.view(N, 1, -1), batch_jacobian)
+        backward_grad.squeeze_()
+
+        return backward_grad
+
+    def __repr__(self):
+        return "Softmax"
+
+class LogSoftmax(Operation):
+    def __init__(self):
+        super().__init__()
+
+    def _output(self) -> Tensor:
+        self.output = self.input - torch.log(torch.exp(self.input).sum(dim=1).view(-1, 1))
+        return self.output
+
+    def _input_grad(self, output_grad: Tensor) -> Tensor:
+        ps = torch.exp(self.output)
+        N, M = ps.shape[0], ps.shape[1]
+        batch_jacobian = torch.zeros((N, M, M))
+
+        # Create an identity matrix
+        ones = torch.diagflat(torch.ones(M))
+
+        for ii, p in enumerate(ps):
+            # Repeat the p values across columns to get p_k
+            p_k = p.repeat((M, 1))
+            batch_jacobian[ii,:,:] = ones - p_k
+
+        backward_grad = torch.bmm(output_grad.view(N, 1, -1), batch_jacobian)
+        backward_grad.squeeze_()
+
+        return backward_grad
+
+    def __repr__(self):
+        return "LogSoftmax"
+
+class Conv2D_Op(ParamOperation):
 
     def __init__(self, param: Tensor):
         assert_dim(param, 4)

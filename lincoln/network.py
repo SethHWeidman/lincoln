@@ -78,7 +78,6 @@ class NeuralNetwork(LayerBlock):
         self.backward(self.loss.backward())
 
         self.update_params()
-
         return batch_loss
 
     def update_params(self) -> None:

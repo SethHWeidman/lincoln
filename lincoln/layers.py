@@ -6,8 +6,7 @@ from torch import Tensor
 
 from .operations import Operation, ParamOperation, WeightMultiply, BiasAdd, Conv2D_Op, Flatten
 from .activations import Activation, LinearAct
-from .exc import MatchError, DimensionError
-from .utils import assert_same_shape
+from .exc import MatchError, DimensionError, assert_same_shape
 
 
 class Layer(object):
