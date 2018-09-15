@@ -39,6 +39,20 @@ class Operation(object):
         raise NotImplementedError()
 
 
+class Flatten(Operation):
+    def __init__(self):
+        super().__init__()
+
+
+    def _output(self) -> Tensor:
+        return self.input_.view(self.input_.shape[0], -1)
+
+
+    def _input_grad(self, output_grad: Tensor) -> Tensor:
+        return output_grad.view(*self.input_.shape)
+
+
+
 class ParamOperation(Operation):
 
     def __init__(self, param: Tensor) -> Tensor:
@@ -93,7 +107,7 @@ class BiasAdd(ParamOperation):
         return torch.sum(param_grad, dim=0).reshape(1, param_grad.shape[1])
 
 
-class Conv2D(ParamOperation):
+class Conv2D_Op(ParamOperation):
 
 
     def __init__(self, param: Tensor):
@@ -131,29 +145,31 @@ class Conv2D(ParamOperation):
         return torch.stack(outs)
 
 
-    def _select_channel(inp: Tensor, i: int):
+    def _select_channel(self, inp: Tensor, i: int):
+        assert_dim(inp, 3)
         return torch.index_select(inp, dim=2, index=torch.LongTensor([i])).squeeze(2)
 
 
-    def _pad_2d_channel(inp: Tensor, num: int):
+    def _pad_2d_channel(self, input_obs: Tensor):
         '''
         "inp" is a 3 dimensional tensor:
         * image width
         * image height
         * channels
         '''
-        assert_dim(inp, 3)
-        num_channels = inp.shape[2]
-        return torch.stack([_pad_2d_obs(self._select_channel(inp, i), num)
+        assert_dim(input_obs, 3)
+        num_channels = input_obs.shape[2]
+        return torch.stack([self._pad_2d_obs(self._select_channel(input_obs, i))
                             for i in range(num_channels)], dim=2)
 
 
     def _pad_conv_input(self):
-        return torch.stack([_pad_2d_channel(obs, self.param_mid)
+        return torch.stack([self._pad_2d_channel(obs)
                             for obs in self.input_])
 
 
     def _compute_output_obs(self, obs: Tensor):
+
         assert_dim(obs, 3)
         obs_pad = self._pad_2d_channel(obs)
 
@@ -165,7 +181,7 @@ class Conv2D(ParamOperation):
                         for p_w in range(self.param_size):
                             for p_h in range(self.param_size):
                                 out[o_w][o_h][c_out] += \
-                                fil[p_w][p_h][c_in][c_out] * obs_pad[o_w+p_w][o_h+p_h][c_in]
+                                self.param[p_w][p_h][c_in][c_out] * obs_pad[o_w+p_w][o_h+p_h][c_in]
         return out
 
 
@@ -177,8 +193,10 @@ class Conv2D(ParamOperation):
 
     def _compute_grads_obs(self, input_obs: Tensor,
                            output_grad_obs: Tensor) -> Tensor:
+
         assert_dim(input_obs, 3)
         assert_dim(output_grad_obs, 3)
+
         output_obs_pad = self._pad_2d_channel(output_grad_obs)
         input_grad = torch.zeros_like(input_obs)
 
@@ -190,7 +208,7 @@ class Conv2D(ParamOperation):
                             for p_h in range(self.param_size):
                                 input_grad[i_w][i_h][c_in] += \
                                 output_obs_pad[i_w+self.param_size-p_w-1][i_h+self.param_size-p_h-1][c_out] \
-                                * fil[p_w][p_h][c_in][c_out]
+                                * self.param[p_w][p_h][c_in][c_out]
 
         return input_grad
 
@@ -204,15 +222,15 @@ class Conv2D(ParamOperation):
 
     def _param_grad(self, output_grad: Tensor) -> Tensor:
 
-        inp_pad = self._pad_conv_input(self.input_)
+        inp_pad = self._pad_conv_input()
 
         param_grad = torch.zeros_like(self.param)
 
         for i in range(self.input_.shape[0]):
-            for c_in in range(in_channels):
-                for c_out in range(out_channels):
-                    for o_w in range(output_grad[1]):
-                        for o_h in range(output_grad[2]):
+            for c_in in range(self.in_channels):
+                for c_out in range(self.out_channels):
+                    for o_w in range(output_grad.shape[1]):
+                        for o_h in range(output_grad.shape[2]):
                             for p_w in range(self.param_size):
                                 for p_h in range(self.param_size):
                                     param_grad[p_w][p_h][c_in][c_out] += \
