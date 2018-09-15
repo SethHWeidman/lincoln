@@ -3,14 +3,18 @@ from torch import Tensor
 
 from .utils import assert_same_shape, assert_dim
 
+__all__ = ["WeightMultiply", "BiasAdd", "Sigmoid", "LogSigmoid", "Softmax", "LogSoftmax", "ReLU"]
+
+
 class Operation(object):
 
     def __init__(self):
         pass
 
 
-    def forward(self, input_: Tensor):
-        self.input_ = input_
+    def forward(self, input: Tensor):
+
+        self.input = input
 
         self.output = self._output()
 
@@ -23,7 +27,7 @@ class Operation(object):
 
         self._compute_grads(output_grad)
 
-        assert_same_shape(self.input_, self.input_grad)
+        assert_same_shape(self.input, self.input_grad)
         return self.input_grad
 
 
@@ -45,11 +49,11 @@ class Flatten(Operation):
 
 
     def _output(self) -> Tensor:
-        return self.input_.view(self.input_.shape[0], -1)
+        return self.input.view(self.input.shape[0], -1)
 
 
     def _input_grad(self, output_grad: Tensor) -> Tensor:
-        return output_grad.view(*self.input_.shape)
+        return output_grad.view(*self.input.shape)
 
 
 
@@ -76,7 +80,7 @@ class WeightMultiply(ParamOperation):
 
 
     def _output(self) -> Tensor:
-        return torch.mm(self.input_, self.param)
+        return torch.mm(self.input, self.param)
 
 
     def _input_grad(self, output_grad: Tensor) -> Tensor:
@@ -84,7 +88,7 @@ class WeightMultiply(ParamOperation):
 
 
     def _param_grad(self, output_grad: Tensor) -> Tensor:
-        return torch.mm(self.input_.transpose(0, 1), output_grad)
+        return torch.mm(self.input.transpose(0, 1), output_grad)
 
 
 class BiasAdd(ParamOperation):
@@ -95,11 +99,11 @@ class BiasAdd(ParamOperation):
 
 
     def _output(self) -> Tensor:
-        return torch.add(self.input_, self.param)
+        return torch.add(self.input, self.param)
 
 
     def _input_grad(self, output_grad: Tensor) -> Tensor:
-        return torch.ones_like(self.input_) * output_grad
+        return torch.ones_like(self.input) * output_grad
 
 
     def _param_grad(self, output_grad: Tensor) -> Tensor:
@@ -165,7 +169,7 @@ class Conv2D_Op(ParamOperation):
 
     def _pad_conv_input(self):
         return torch.stack([self._pad_2d_channel(obs)
-                            for obs in self.input_])
+                            for obs in self.input])
 
 
     def _compute_output_obs(self, obs: Tensor):
@@ -187,7 +191,7 @@ class Conv2D_Op(ParamOperation):
 
     def _output(self):
 
-        outs = [self._compute_output_obs(obs) for obs in self.input_]
+        outs = [self._compute_output_obs(obs) for obs in self.input]
         return torch.stack(outs)
 
 
@@ -215,7 +219,7 @@ class Conv2D_Op(ParamOperation):
 
     def _input_grad(self, output_grad: Tensor) -> Tensor:
 
-        grads = [self._compute_grads_obs(self.input_[i], output_grad[i]) for i in range(output_grad.shape[0])]
+        grads = [self._compute_grads_obs(self.input[i], output_grad[i]) for i in range(output_grad.shape[0])]
 
         return torch.stack(grads)
 
@@ -226,7 +230,7 @@ class Conv2D_Op(ParamOperation):
 
         param_grad = torch.zeros_like(self.param)
 
-        for i in range(self.input_.shape[0]):
+        for i in range(self.input.shape[0]):
             for c_in in range(self.in_channels):
                 for c_out in range(self.out_channels):
                     for o_w in range(output_grad.shape[1]):
