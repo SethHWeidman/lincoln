@@ -56,6 +56,46 @@ class Flatten(Operation):
         return output_grad.view(*self.input.shape)
 
 
+class Softmax(Operation):
+    def __init__(self):
+        super().__init__()
+
+    def _output(self) -> Tensor:
+        self.output = torch.exp(self.input) / torch.sum(torch.exp(self.input), dim=1).view(n, 1)
+        return self.output
+
+    def _input_grad(self, output_grad: Tensor) -> Tensor:
+        ps = self.output
+        N, M = ps.shape[0], ps.shape[1]
+        batch_jacobian = torch.zeros((N, M, M))
+
+        for ii, p in enumerate(ps):
+            batch_jacobian[ii,:,:] = torch.diag(p) - torch.ger(p, p)
+
+        backward_grad = torch.bmm(output_grad.view(N, 1, -1), batch_jacobian)
+        backward_grad.squeeze_()
+
+        return backward_grad
+
+    def __repr__(self):
+        return "Softmax"
+
+
+class ReLU(Operation):
+    def __init__(self):
+        super().__init__()
+
+    def _output(self) -> Tensor:
+        self.output = torch.clamp(self.input, 0, 1e5)
+        return self.output
+
+    def _input_grad(self, output_grad: Tensor) -> Tensor:
+        relu_backward = (self.output > 0).type(self.output.dtype)
+        return relu_backward * output_grad
+
+    def __repr__(self):
+        return "ReLU"
+
 
 class ParamOperation(Operation):
 
@@ -155,12 +195,7 @@ class Conv2D_Op(ParamOperation):
 
 
     def _pad_2d_channel(self, input_obs: Tensor):
-        '''
-        "inp" is a 3 dimensional tensor:
-        * image width
-        * image height
-        * channels
-        '''
+
         assert_dim(input_obs, 3)
         num_channels = input_obs.shape[2]
         return torch.stack([self._pad_2d_obs(self._select_channel(input_obs, i))

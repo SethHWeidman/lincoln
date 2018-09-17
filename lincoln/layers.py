@@ -109,5 +109,7 @@ class Conv2D(Layer):
                                  self.neurons).uniform_(-1, 1)
         self.params.append(conv_param)
 
-        self.operations = [Conv2D_Op(self.params[0])] + \
-        [self.activation] + [Flatten()]
+        self.operations = [Conv2D_Op(self.params[0])] + [self.activation]
+
+        if flatten:
+            self.operations.append(Flatten())
