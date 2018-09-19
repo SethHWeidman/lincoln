@@ -111,5 +111,5 @@ class Conv2D(Layer):
 
         self.operations = [Conv2D_Op(self.params[0])] + [self.activation]
 
-        if flatten:
+        if self.flatten:
             self.operations.append(Flatten())

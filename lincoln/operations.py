@@ -61,7 +61,7 @@ class Softmax(Operation):
         super().__init__()
 
     def _output(self) -> Tensor:
-        self.output = torch.exp(self.input) / torch.sum(torch.exp(self.input), dim=1).view(n, 1)
+        self.output = torch.exp(self.input) / torch.sum(torch.exp(self.input), dim=1).view(-1, 1)
         return self.output
 
     def _input_grad(self, output_grad: Tensor) -> Tensor:
