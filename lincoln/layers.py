@@ -4,7 +4,8 @@ from typing import List, Tuple, Dict
 import torch
 from torch import Tensor
 
-from .operations import Operation, ParamOperation, WeightMultiply, BiasAdd, Conv2D_Op, Flatten
+from .operations import (Operation, ParamOperation, WeightMultiply, BiasAdd, Conv2D_Op,
+                         Flatten, Conv2D_Op_cy)
 from .activations import Activation, LinearAct
 from .exc import MatchError, DimensionError
 from .utils import assert_same_shape
@@ -94,10 +95,12 @@ class Conv2D(Layer):
                  out_channels: int,
                  param_size: int,
                  activation: Activation = LinearAct,
-                 flatten=False) -> None:
+                 cython: bool = False,
+                 flatten: bool = False) -> None:
         super().__init__(out_channels)
         self.param_size = param_size
         self.activation = activation
+        self.cython = cython
         self.flatten = flatten
 
 
@@ -109,7 +112,14 @@ class Conv2D(Layer):
                                  self.neurons).uniform_(-1, 1)
         self.params.append(conv_param)
 
-        self.operations = [Conv2D_Op(self.params[0])] + [self.activation]
+        self.operations = []
+
+        if self.cython:
+            self.operations.append(Conv2D_Op_cy(self.params[0]))
+        else:
+            self.operations.append(Conv2D_Op(self.params[0]))
+
+        self.operations.append(self.activation)
 
         if self.flatten:
             self.operations.append(Flatten())

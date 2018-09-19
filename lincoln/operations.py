@@ -262,7 +262,7 @@ class Conv2D_Op(ParamOperation):
     def _param_grad(self, output_grad: Tensor) -> Tensor:
 
         inp_pad = self._pad_conv_input()
-
+        import pdb; pdb.set_trace()
         param_grad = torch.zeros_like(self.param)
 
         for i in range(self.input.shape[0]):
@@ -276,3 +276,111 @@ class Conv2D_Op(ParamOperation):
                                     inp_pad[i][o_w+p_w][o_h+p_h][c_in] \
                                     * output_grad[i][o_w][o_h][c_out]
         return param_grad
+
+
+from .conv_c import (_pad_1d_obs_cy,
+                    _pad_1d_batch_cy,
+                    _pad_2d_obs_cy,
+                    _pad_2d_batch_cy,
+                    _select_channel_cy,
+                    _pad_2d_channel_cy,
+                    _pad_conv_input_cy,
+                    _compute_output_obs_cy,
+                    _output_cy,
+                    _compute_grads_obs_cy,
+                    _input_grad_cy,
+                    _param_grad_cy)
+
+
+class Conv2D_Op_cy(ParamOperation):
+
+
+    def __init__(self, param: Tensor):
+        assert_dim(param, 4)
+        super().__init__(param)
+        self.param_size = self.param.shape[0]
+        self.param_pad = self.param_size // 2
+        self.in_channels = self.param.shape[2]
+        self.out_channels = self.param.shape[3]
+
+
+    def _pad_1d_obs(self, obs: Tensor) -> Tensor:
+        assert_dim(obs, 1)
+        obs_np = obs.numpy()
+        return Tensor(_pad_1d_obs_cy(obs_np, self.param_pad))
+
+
+    def _pad_1d_batch(self, inp: Tensor) -> Tensor:
+        assert_dim(inp, 2)
+        inp_np = inp.numpy()
+        return Tensor(_pad_1d_batch_cy(inp_np, self.param_pad))
+
+
+    def _pad_2d_obs(self, inp: Tensor):
+        assert_dim(inp, 2)
+        inp_np = inp.numpy()
+        return Tensor(_pad_2d_obs_cy(inp_np, self.param_pad))
+
+
+    def _pad_2d_batch(self, inp: Tensor):
+        assert_dim(inp, 3)
+        inp_np = inp.numpy()
+        return Tensor(_pad_2d_batch_cy(inp_np, self.param_pad))
+
+
+    def _select_channel(self, inp: Tensor, i: int):
+        assert_dim(inp, 3)
+        inp_np = inp.numpy()
+        return Tensor(_select_channel_cy(inp_np, i))
+
+
+    def _pad_2d_channel(self, input_obs: Tensor):
+        assert_dim(input_obs, 3)
+        input_obs_np = input_obs.numpy()
+        return Tensor(_pad_2d_channel_cy(input_obs_np,
+                                         self.param_pad))
+
+
+    def _pad_conv_input(self):
+        return Tensor(_pad_conv_input_cy(self.input.numpy(),
+                                         self.param_pad))
+
+
+    def _compute_output_obs(self, obs: Tensor):
+        assert_dim(obs, 3)
+        obs_np = obs.numpy()
+        return Tensor(_compute_output_obs_cy(obs_np,
+                                      self.param.numpy()))
+
+
+    def _output(self):
+        return Tensor(_output_cy(self.input.numpy(),
+                         self.param.numpy()))
+
+
+
+    def _compute_grads_obs(self, input_obs: Tensor,
+                           output_grad_obs: Tensor) -> Tensor:
+        assert_dim(input_obs, 3)
+        assert_dim(output_grad_obs, 3)
+        input_obs_np = input_obs.numpy()
+        output_grad_obs_np = output_grad_obs.numpy()
+        return Tensor(_compute_grads_obs_cy(input_obs_np,
+                                            output_grad_obs_np,
+                                            self.param.numpy()))
+
+
+    def _input_grad(self, output_grad: Tensor) -> Tensor:
+        assert_dim(output_grad, 4)
+        output_grad_np = output_grad.numpy()
+        return Tensor(_input_grad_cy(self.input.numpy(),
+                                     output_grad_np,
+                                     self.param.numpy()))
+
+
+    def _param_grad(self, output_grad: Tensor) -> Tensor:
+        assert_dim(output_grad, 4)
+        output_grad_np = output_grad.numpy()
+        return Tensor(_param_grad_cy(self.input.numpy(),
+                       output_grad_np,
+                       self.param.numpy()))
