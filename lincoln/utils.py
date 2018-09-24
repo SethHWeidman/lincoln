@@ -36,6 +36,7 @@ def permute_data(X, y):
 
 Batch = Tuple[Tensor, Tensor]
 
+
 def generate_batch(X: Tensor,
                    y: Tensor,
                    start: int = 0,
@@ -84,3 +85,21 @@ def assert_dim(t: Tensor,
     Tensor expected to have dimension {0}, instead has dimension {1}
     '''.format(dim, len(t.shape))
     return None
+
+
+def softmax(pred: Tensor) -> Tensor:
+
+    def _softmax_row(row: Tensor) -> Tensor:
+
+        exp_obs = torch.exp(row)
+        sum_exp_obs = exp_obs.sum().item()
+        softmax_obs = exp_obs / sum_exp_obs
+
+        return softmax_obs
+
+    output_rows = []
+    for obs in range(pred.shape[0]):
+        output_row = _softmax_row(pred[obs])
+        output_rows.append(output_row)
+
+    return torch.stack(output_rows)

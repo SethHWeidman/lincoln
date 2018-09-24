@@ -86,7 +86,7 @@ class ReLU(Operation):
         super().__init__()
 
     def _output(self) -> Tensor:
-        self.output = torch.clamp(self.input, 0, 1e5)
+        self.output = torch.clamp(self.input, 0, 1e8)
         return self.output
 
     def _input_grad(self, output_grad: Tensor) -> Tensor:

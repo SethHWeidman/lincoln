@@ -49,6 +49,8 @@ def _pad_conv_input_cy(np.ndarray inp,
     return np.stack([_pad_2d_channel_cy(obs, pad) for obs in inp])
 
 
+@cython.boundscheck(False)  # Deactivate bounds checking
+@cython.wraparound(False)   # Deactivate negative indexing.
 def _compute_output_obs_cy(np.ndarray inp,
                            np.ndarray param):
 
@@ -80,6 +82,8 @@ def _output_cy(np.ndarray inp,
     return np.stack([_compute_output_obs_cy(obs, param) for obs in inp])
 
 
+@cython.boundscheck(False)  # Deactivate bounds checking
+@cython.wraparound(False)   # Deactivate negative indexing.
 def _compute_grads_obs_cy(np.ndarray input_obs,
                           np.ndarray output_grad_obs,
                           np.ndarray param):
@@ -113,6 +117,8 @@ def _input_grad_cy(np.ndarray inp,
     return np.stack([_compute_grads_obs_cy(inp[i], output_grad[i], param) for i in range(inp.shape[0])])
 
 
+@cython.boundscheck(False)  # Deactivate bounds checking
+@cython.wraparound(False)   # Deactivate negative indexing.
 def _param_grad_cy(np.ndarray inp,
                    np.ndarray output_grad,
                    np.ndarray param):
@@ -138,10 +144,7 @@ def _param_grad_cy(np.ndarray inp,
                     for o_h in range(img_h):
                         for p_w in range(param_size):
                             for p_h in range(param_size):
-                                try:
-                                    param_grad[p_w][p_h][c_in][c_out] += \
-                                    inp_pad[i][o_w+p_w][o_h+p_h][c_in] \
-                                    * output_grad[i][o_w][o_h][c_out]
-                                except:
-                                    return i, c_in, c_out, o_w, o_h, p_w, p_h, param_grad, output_grad
+                                param_grad[p_w][p_h][c_in][c_out] += \
+                                inp_pad[i][o_w+p_w][o_h+p_h][c_in] \
+                                * output_grad[i][o_w][o_h][c_out]
     return param_grad

@@ -62,20 +62,17 @@ class NeuralNetwork(LayerBlock):
         self.optimizer = optimizer
         self.batch_gen = batch_gen
 
-    def forward_loss(self,
-                     X_batch: Tensor,
-                     y_batch: Tensor) -> float:
-
-        prediction = self.forward(X_batch)
-        return self.loss.loss_gradient(prediction, y_batch)
 
     def train_batch(self,
                     X_batch: Tensor,
                     y_batch: Tensor) -> float:
 
-        loss = self.forward_loss(X_batch, y_batch)
+        prediction = self.forward(X_batch)
 
-        self.backward(self.loss.loss_grad)
+        loss = self.loss.forward(prediction, y_batch)
+        loss_grad = self.loss.backward()
+
+        self.backward(loss_grad)
 
         self.update_params()
 
@@ -85,6 +82,7 @@ class NeuralNetwork(LayerBlock):
 
         for layer in self.layers:
             self.optimizer.step(layer)
+
 
     def fit(self, X_train: Tensor, y_train: Tensor,
             X_test: Tensor, y_test: Tensor,
@@ -105,8 +103,10 @@ class NeuralNetwork(LayerBlock):
             batch_generator = self.batch_gen(X_train, y_train, size=batch_size)
             for ii, (X_batch, y_batch) in enumerate(batch_generator):
 
-                print(self.train_batch(X_batch, y_batch))
+                self.train_batch(X_batch, y_batch)
 
             if (e+1) % eval_every == 0:
-                loss = self.forward_loss(X_test, y_test)
+                test_preds = self.forward(X_test)
+                # import pdb; pdb.set_trace()
+                loss = self.loss.forward(test_preds, y_test)
                 print(f"Validation loss after {e+1} epochs is {loss:.3f}")
