@@ -4,7 +4,7 @@ from typing import List, Tuple, Dict
 import torch
 from torch import Tensor
 
-from .operations import (Operation, ParamOperation, WeightMultiply, BiasAdd, Conv2D_Op, Flatten, Conv2D_Op_cy)
+from .operations import (Operation, ParamOperation, WeightMultiply, BiasAdd, Conv2D_Op, Flatten, Conv2D_Op_cy, Conv2D_Op_Pyt)
 from .activations import Activation, LinearAct
 from .exc import MatchError, DimensionError
 from .utils import assert_same_shape, assert_dim
@@ -25,7 +25,7 @@ class Layer(object):
 
     def forward(self, input_: Tensor) -> Tensor:
         if self.first:
-            input_ = self._setup_layer(input_)
+            self._setup_layer(input_)
             self.first = False
 
         self.input_ = input_
@@ -85,7 +85,7 @@ class Dense(Layer):
         self.operations = [WeightMultiply(self.params[0]),
                            BiasAdd(self.params[1])] + [self.activation]
 
-        return input_
+        return None
 
 
 class Conv2D(Layer):
@@ -98,33 +98,43 @@ class Conv2D(Layer):
                  param_size: int,
                  activation: Activation = LinearAct,
                  cython: bool = False,
+                 pytorch: bool = False,
                  flatten: bool = False) -> None:
         super().__init__(out_channels)
         self.param_size = param_size
         self.activation = activation
         self.cython = cython
+        self.pytorch = pytorch
         self.flatten = flatten
+        self.neurons = out_channels
 
 
     def _setup_layer(self, input_: Tensor) -> Tensor:
-        # weights
-        conv_param = torch.empty(self.param_size,
-                                 self.param_size,
-                                 input_.shape[3],
-                                 self.neurons).uniform_(-1, 1)
+        if self.pytorch:
+            # import pdb; pdb.set_trace()
+            conv_param = torch.empty(self.neurons,
+                                     input_.shape[1],
+                                     self.param_size,
+                                     self.param_size).uniform_(-1, 1)
+        else:
+            conv_param = torch.empty(self.param_size,
+                                     self.param_size,
+                                     input_.shape[3],
+                                     self.neurons).uniform_(-1, 1)
         self.params.append(conv_param)
 
         self.operations = []
 
         if self.cython:
             self.operations.append(Conv2D_Op_cy(self.params[0]))
+        elif self.pytorch:
+            self.operations.append(Conv2D_Op_Pyt(self.params[0]))
         else:
-            self.operations.append(Conv2D_Op(self.params[0]))
-
+            self.operations.append(Conv2D(self.params[0]))
 
         self.operations.append(self.activation)
 
         if self.flatten:
             self.operations.append(Flatten())
 
-        return input_
+        return None

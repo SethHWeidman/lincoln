@@ -2,6 +2,7 @@ import torch
 from torch import Tensor
 
 from .utils import assert_same_shape, assert_dim
+from torch import nn
 
 __all__ = ["WeightMultiply", "BiasAdd", "Sigmoid", "LogSigmoid", "Softmax", "LogSoftmax", "ReLU"]
 
@@ -384,3 +385,44 @@ class Conv2D_Op_cy(ParamOperation):
         return Tensor(_param_grad_cy(self.input.numpy(),
                        output_grad_np,
                        self.param.numpy()))
+
+
+class Conv2D_Op_Pyt(ParamOperation):
+
+
+    def __init__(self, param: Tensor):
+        assert_dim(param, 4)
+        super().__init__(param)
+        self.param_size = self.param.shape[2]
+        self.param_pad = self.param_size // 2
+        self.in_channels = self.param.shape[1]
+        self.out_channels = self.param.shape[0]
+
+
+    def _output(self) -> Tensor:
+
+        self.input_with_grad = self.input.detach()
+        self.input_with_grad.requires_grad = True
+
+        self.op = nn.Conv2d(self.in_channels,
+                            self.out_channels,
+                            self.param_size,
+                            padding=self.param_pad,
+                            bias=False)
+
+        return self.op(self.input_with_grad)
+
+
+    def _input_grad(self, output_grad: Tensor) -> Tensor:
+
+        out = self.op(self.input_with_grad)
+
+        out.backward(gradient=output_grad)
+
+        return self.input_with_grad.grad
+
+
+    def _param_grad(self, output_grad: Tensor) -> Tensor:
+
+        # print(self.op.weight.grad)
+        return self.op.weight.grad
