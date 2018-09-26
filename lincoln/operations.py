@@ -44,6 +44,22 @@ class Operation(object):
         raise NotImplementedError()
 
 
+class ParamOperation(Operation):
+
+    def __init__(self, param: Tensor) -> Tensor:
+        super().__init__()
+        self.param = param
+
+
+    def _compute_grads(self, output_grad: Tensor) -> Tensor:
+        self.input_grad = self._input_grad(output_grad)
+        self.param_grad = self._param_grad(output_grad)
+
+
+    def _param_grad(self, output_grad: Tensor) -> Tensor:
+        raise NotImplementedError()
+
+
 class Flatten(Operation):
     def __init__(self):
         super().__init__()
@@ -96,22 +112,6 @@ class ReLU(Operation):
 
     def __repr__(self):
         return "ReLU"
-
-
-class ParamOperation(Operation):
-
-    def __init__(self, param: Tensor) -> Tensor:
-        super().__init__()
-        self.param = param
-
-
-    def _compute_grads(self, output_grad: Tensor) -> Tensor:
-        self.input_grad = self._input_grad(output_grad)
-        self.param_grad = self._param_grad(output_grad)
-
-
-    def _param_grad(self, output_grad: Tensor) -> Tensor:
-        raise NotImplementedError()
 
 
 class WeightMultiply(ParamOperation):
@@ -387,28 +387,18 @@ class Conv2D_Op_cy(ParamOperation):
                        self.param.numpy()))
 
 
-class Conv2D_Op_Pyt(ParamOperation):
+class PyTorchOperation(ParamOperation):
 
-
-    def __init__(self, param: Tensor):
-        assert_dim(param, 4)
+    def __init__(self, param: Tensor) -> Tensor:
         super().__init__(param)
-        self.param_size = self.param.shape[2]
-        self.param_pad = self.param_size // 2
-        self.in_channels = self.param.shape[1]
-        self.out_channels = self.param.shape[0]
-
+        self.op = nn.Linear(param.shape[0],
+                            param.shape[0])
 
     def _output(self) -> Tensor:
 
         self.input_with_grad = self.input.detach()
         self.input_with_grad.requires_grad = True
 
-        self.op = nn.Conv2d(self.in_channels,
-                            self.out_channels,
-                            self.param_size,
-                            padding=self.param_pad,
-                            bias=False)
 
         return self.op(self.input_with_grad)
 
@@ -424,5 +414,21 @@ class Conv2D_Op_Pyt(ParamOperation):
 
     def _param_grad(self, output_grad: Tensor) -> Tensor:
 
-        # print(self.op.weight.grad)
         return self.op.weight.grad
+
+
+class Conv2D_Op_Pyt(PyTorchOperation):
+
+
+    def __init__(self, param: Tensor):
+        assert_dim(param, 4)
+        super().__init__(param)
+        self.param_size = self.param.shape[2]
+        self.param_pad = self.param_size // 2
+        self.in_channels = self.param.shape[1]
+        self.out_channels = self.param.shape[0]
+        self.op = nn.Conv2d(self.in_channels,
+                            self.out_channels,
+                            self.param_size,
+                            padding=self.param_pad,
+                            bias=False)
