@@ -56,7 +56,7 @@ class MeanSquaredError(Loss):
         return 2.0 * (self.prediction - self.target)
 
 
-class LogLoss(Loss):
+class LogSoftmaxLoss(Loss):
     def __init__(self, eta=1e-9) -> None:
         super().__init__()
 
@@ -77,20 +77,27 @@ class LogLoss(Loss):
 
 
 class LogSigmoidLoss(Loss):
-    def __init__(self):
+    def __init__(self, eta=1e-6):
         super().__init__()
 
-    def loss_gradient(self,
-                      predictions: Tensor,
-                target: Tensor) -> float:
+        # Small parameter to avoid explosions when our probabilities get near 0 or 1
+        # A better way to do this is use log probabilities everywhere
+        self.eta = eta
 
-
-        loss = torch.sum(-target*predictions - (1-target)*torch.log(1-torch.exp(predictions)))
-
-        exp_z = torch.exp(predictions)
-        N = target.shape[0]
-        self.loss_grad = torch.sum(-target + (1-target)*exp_z/(1 - exp_z), dim=1).view(N, -1)
-
-        assert_same_shape(predictions, self.loss_grad)
+    def _output(self) -> float:
+        prediction, target = self.prediction, self.target
+        loss = torch.sum(-target*prediction - (1-target)*torch.log(1-torch.exp(prediction) + self.eta))
 
         return loss.item()
+
+    def _input_grad(self) -> Tensor:
+
+        prediction, target = self.prediction, self.target
+
+        exp_z = torch.exp(prediction)
+        N = target.shape[0]
+        self.loss_grad = torch.sum(-target + (1-target)*exp_z/(1 - exp_z + self.eta), dim=1).view(N, -1)
+
+        assert_same_shape(prediction, self.loss_grad)
+
+        return self.loss_grad

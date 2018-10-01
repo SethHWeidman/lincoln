@@ -103,7 +103,7 @@ class NeuralNetwork(LayerBlock):
             batch_generator = self.batch_gen(X_train, y_train, size=batch_size)
             for ii, (X_batch, y_batch) in enumerate(batch_generator):
 
-                print(self.train_batch(X_batch, y_batch))
+                self.train_batch(X_batch, y_batch)
 
             if (e+1) % eval_every == 0:
                 test_preds = self.forward(X_test)

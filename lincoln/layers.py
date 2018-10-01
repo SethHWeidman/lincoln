@@ -110,27 +110,21 @@ class Conv2D(Layer):
 
 
     def _setup_layer(self, input_: Tensor) -> Tensor:
-        if self.pytorch:
-            # import pdb; pdb.set_trace()
-            conv_param = torch.empty(self.neurons,
-                                     input_.shape[1],
-                                     self.param_size,
-                                     self.param_size).uniform_(-1, 1)
-        else:
-            conv_param = torch.empty(self.param_size,
-                                     self.param_size,
-                                     input_.shape[3],
-                                     self.neurons).uniform_(-1, 1)
+
+        conv_param = torch.empty(self.neurons,
+                                 input_.shape[1],
+                                 self.param_size,
+                                 self.param_size).uniform_(-1, 1)
         self.params.append(conv_param)
 
         self.operations = []
 
-        if self.cython:
-            self.operations.append(Conv2D_Op_cy(self.params[0]))
-        elif self.pytorch:
+        if self.pytorch:
             self.operations.append(Conv2D_Op_Pyt(self.params[0]))
+        elif self.cython:
+            self.operations.append(Conv2D_Op_cy(self.params[0]))
         else:
-            self.operations.append(Conv2D(self.params[0]))
+            self.operations.append(Conv2D_Op(self.params[0]))
 
         self.operations.append(self.activation)
 
