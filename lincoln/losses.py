@@ -39,27 +39,6 @@ class Loss:
         raise NotImplementedError()
 
 
-class LogSigmoidLoss(Loss):
-    def __init__(self, eta=1e-6):
-        super().__init__()
-
-    def _output(self) -> float:
-        prediction, target = self.prediction, self.target
-        loss = torch.sum(-target*prediction - (1-target)*torch.log(1-torch.exp(prediction) + self.eta))
-
-        return loss.item()
-
-
-    def _input_grad(self) -> Tensor:
-
-        prediction, target = self.prediction, self.target
-
-        exp_z = torch.exp(prediction)
-        N = target.shape[0]
-        self.loss_grad = torch.sum(-target + (1-target)*exp_z/(1
-
-
-
 class MeanSquaredError(Loss):
 
     def __init__(self) -> None:
