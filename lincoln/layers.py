@@ -6,15 +6,9 @@ from torch import Tensor
 
 from .operations import (Operation, ParamOperation, WeightMultiply, BiasAdd, Conv2D_Op, Flatten, Conv2D_Op_cy, Conv2D_Op_Pyt)
 from .activations import Activation, LinearAct
-<<<<<<< HEAD
-from .exc import MatchError, DimensionError, assert_same_shape
-=======
 from .exc import MatchError, DimensionError
 from .utils import assert_same_shape, assert_dim
-<<<<<<< HEAD
->>>>>>> test_conv
-=======
->>>>>>> test_conv
+
 
 
 class Layer(object):
