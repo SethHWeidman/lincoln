@@ -77,7 +77,7 @@ class NeuralNetwork(LayerBlock):
 
         prediction = self.forward(X_batch)
 
-        loss = self.loss.forward(prediction, y_batch)
+        batch_loss = self.loss.forward(prediction, y_batch)
         loss_grad = self.loss.backward()
 
         self.backward(loss_grad)
