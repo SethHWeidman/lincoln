@@ -99,34 +99,6 @@ class Softmax(Operation):
         return "Softmax"
 
 
-class ReLU(Operation):
-    def __init__(self):
-        super().__init__()
-
-<<<<<<< HEAD
-    def backward(self, output_grad: Tensor) -> Tensor:
-
-        assert_same_shape(self.output, output_grad)
-
-        self.input_grad = self._input_grad(output_grad)
-        self.param_grad = self._param_grad(output_grad)
-
-        assert_same_shape(self.input, self.input_grad)
-        return self.input_grad
-=======
-    def _output(self) -> Tensor:
-        self.output = torch.clamp(self.input, 0, 1e8)
-        return self.output
-
-    def _input_grad(self, output_grad: Tensor) -> Tensor:
-        relu_backward = (self.output > 0).type(self.output.dtype)
-        return relu_backward * output_grad
-
-    def __repr__(self):
-        return "ReLU"
->>>>>>> test_conv
-
-
 class LogSigmoid(Operation):
     def __init__(self):
         super().__init__()
@@ -299,6 +271,7 @@ class LogSoftmax(Operation):
 
     def __repr__(self):
         return "LogSoftmax"
+
 
 class Conv2D_Op(ParamOperation):
 

@@ -11,6 +11,9 @@ from .exc import MatchError, DimensionError, assert_same_shape
 =======
 from .exc import MatchError, DimensionError
 from .utils import assert_same_shape, assert_dim
+<<<<<<< HEAD
+>>>>>>> test_conv
+=======
 >>>>>>> test_conv
 
 

@@ -62,32 +62,25 @@ class NeuralNetwork(LayerBlock):
         self.optimizer = optimizer
         self.batch_gen = batch_gen
 
-<<<<<<< HEAD
+
     def forward_loss(self,
                      X_batch: Tensor,
                      y_batch: Tensor) -> float:
 
         prediction = self.forward(X_batch)
         return self.loss.forward(prediction, y_batch)
-=======
->>>>>>> test_conv
+
 
     def train_batch(self,
                     X_batch: Tensor,
                     y_batch: Tensor) -> float:
 
-<<<<<<< HEAD
-        batch_loss = self.forward_loss(X_batch, y_batch)
-
-        self.backward(self.loss.backward())
-=======
         prediction = self.forward(X_batch)
 
         loss = self.loss.forward(prediction, y_batch)
         loss_grad = self.loss.backward()
 
         self.backward(loss_grad)
->>>>>>> test_conv
 
         self.update_params()
         return batch_loss
