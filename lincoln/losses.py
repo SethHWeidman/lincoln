@@ -3,8 +3,13 @@ import typing
 import torch
 from torch import Tensor
 
+<<<<<<< HEAD
 from .exc import MatchError, DimensionError
 from .utils import assert_same_shape, assert_dim
+=======
+from .exc import MatchError
+from .utils import assert_same_shape, assert_dim, softmax
+>>>>>>> test_conv
 
 
 class Loss:
@@ -13,6 +18,7 @@ class Loss:
         pass
 
     def forward(self, prediction: Tensor, target: Tensor) -> float:
+<<<<<<< HEAD
 
         if len(prediction.shape) != 2:
             raise DimensionError("Prediction tensor must have two dimensions.")
@@ -37,17 +43,27 @@ class Loss:
 
     def _input_grad(self) -> Tensor:
         raise NotImplementedError()
+=======
 
+        assert_dim(prediction, 2)
+        assert_dim(target, 2)
+>>>>>>> test_conv
 
+        self.prediction = prediction
+        self.target = target
+
+<<<<<<< HEAD
 class LogLoss(Loss):
     """ Log loss error specifically for logistic regression, requires a sequence of layers as input """
     def __init__(self, eta=1e-6):
         super().__init__()
+=======
+        self.output = self._output()
+>>>>>>> test_conv
 
-        # Small parameter to avoid explosions when our probabilities get near 0 or 1
-        # A better way to do this is use log probabilities everywhere
-        self.eta = eta
+        return self.output
 
+<<<<<<< HEAD
     def _output(self) -> float:
         prediction, target = self.prediction, self.target
         loss = torch.sum(-target*torch.log(prediction + self.eta) - \
@@ -63,6 +79,31 @@ class LogLoss(Loss):
                               (1-target)/(1 - prediction  + self.eta), dim=1).view(N, -1)
 
         assert_same_shape(prediction, loss_grad)
+=======
+    def backward(self) -> Tensor:
+
+        self.input_grad = self._input_grad()
+
+        assert_same_shape(self.prediction, self.input_grad)
+
+        return self.input_grad
+
+    def _output(self) -> Tensor:
+        raise NotImplementedError()
+
+    def _input_grad(self) -> Tensor:
+        raise NotImplementedError()
+
+
+class MeanSquaredError(Loss):
+
+    def __init__(self) -> None:
+        super().__init__()
+
+
+    def _output(self) -> float:
+        loss = torch.sum(torch.pow(self.prediction - self.target, 2))
+>>>>>>> test_conv
 
         return loss_grad
 
@@ -78,10 +119,10 @@ class LogLoss(Loss):
 
         return loss_grad
 
-    def __repr__(self):
-        return f"LogLoss"
 
+    def _input_grad(self) -> Tensor:
 
+<<<<<<< HEAD
 class LogSigmoidLoss(Loss):
     def __init__(self, eta=1e-6):
         super().__init__()
@@ -120,14 +161,49 @@ class LogSigmoidLoss(Loss):
         assert_same_shape(prediction, self.loss_grad)
 
         return self.loss_grad
+=======
+        return 2.0 * (self.prediction - self.target)
 
 
-class MeanSquaredError(Loss):
-
-    def __init__(self) -> None:
+class LogSoftmaxLoss(Loss):
+    def __init__(self, eta=1e-9) -> None:
         super().__init__()
 
 
+    def _output(self) -> float:
+        softmax_preds = softmax(self.prediction)
+
+        log_loss = -1.0 * self.target * torch.log(softmax_preds) - \
+        (1.0 - self.target) * torch.log(1 - softmax_preds)
+
+        return torch.sum(log_loss).item()
+
+    def _input_grad(self) -> Tensor:
+
+        softmax_preds = softmax(self.prediction)
+>>>>>>> test_conv
+
+        return softmax_preds - self.target
+
+
+<<<<<<< HEAD
+    def __init__(self) -> None:
+        super().__init__()
+=======
+class LogSigmoidLoss(Loss):
+    def __init__(self, eta=1e-6):
+        super().__init__()
+
+        # Small parameter to avoid explosions when our probabilities get near 0 or 1
+        # A better way to do this is use log probabilities everywhere
+        self.eta = eta
+>>>>>>> test_conv
+
+    def _output(self) -> float:
+        prediction, target = self.prediction, self.target
+        loss = torch.sum(-target*prediction - (1-target)*torch.log(1-torch.exp(prediction) + self.eta))
+
+<<<<<<< HEAD
     def _output(self) -> float:
         prediction, target = self.prediction, self.target
         loss = torch.sum(torch.pow(prediction - target, 2))
@@ -136,18 +212,30 @@ class MeanSquaredError(Loss):
 
     def _input_grad(self) -> Tensor:
         prediction, target = self.prediction, self.target
+=======
+        return loss.item()
+>>>>>>> test_conv
 
-        loss_grad = -2.0 * torch.add(target, -1.0 * prediction)
+    def _input_grad(self) -> Tensor:
 
+<<<<<<< HEAD
         assert_same_shape(prediction, loss_grad)
 
     def _input_grad(self) -> Tensor:
         prediction, target = self.prediction, self.target
 
         loss_grad = -2.0 * torch.add(target, -1.0 * prediction)
+=======
+        prediction, target = self.prediction, self.target
+>>>>>>> test_conv
 
-        assert_same_shape(prediction, loss_grad)
+        exp_z = torch.exp(prediction)
+        N = target.shape[0]
+        self.loss_grad = torch.sum(-target + (1-target)*exp_z/(1 - exp_z + self.eta), dim=1).view(N, -1)
 
+        assert_same_shape(prediction, self.loss_grad)
+
+<<<<<<< HEAD
         return loss_grad
 
 
@@ -231,3 +319,6 @@ class NLLLoss(Loss):
 
     def __repr__(self):
         return "NLLLoss"
+=======
+        return self.loss_grad
+>>>>>>> test_conv
