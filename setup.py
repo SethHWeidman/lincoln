@@ -3,6 +3,6 @@ from Cython.Build import cythonize
 import numpy
 
 setup(
-    ext_modules = cythonize("lincoln/conv_c.pyx"),
+    ext_modules = cythonize("lincoln/operations/conv_c.pyx"),
     include_dirs=[numpy.get_include()]
 )

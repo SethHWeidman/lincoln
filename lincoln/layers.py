@@ -4,9 +4,11 @@ from typing import List, Tuple, Dict
 import torch
 from torch import Tensor
 
-from .operations import (Operation, ParamOperation, WeightMultiply, BiasAdd, Conv2D_Op, Flatten, Conv2D_Op_cy, Conv2D_Op_Pyt)
-from .activations import Activation, LinearAct
-from .exc import MatchError, DimensionError
+from .operations.activations import Sigmoid
+from .operations.base import Operation, ParamOperation
+from .operations.operations import WeightMultiply, BiasAdd
+from .operations.conv import Conv2D_Op, Conv2D_Op_cy, Conv2D_Op_Pyt
+from .operations.reshape import Flatten
 from .utils import assert_same_shape, assert_dim
 
 
@@ -69,7 +71,7 @@ class Dense(Layer):
     '''
     def __init__(self,
                  neurons: int,
-                 activation: Activation,
+                 activation: Operation = Sigmoid(),
                  conv_in: bool = False) -> None:
         super().__init__(neurons)
         self.activation = activation
@@ -97,7 +99,7 @@ class Conv2D(Layer):
     def __init__(self,
                  out_channels: int,
                  param_size: int,
-                 activation: Activation = LinearAct,
+                 activation: Operation = Sigmoid(),
                  cython: bool = False,
                  pytorch: bool = False,
                  flatten: bool = False) -> None:
