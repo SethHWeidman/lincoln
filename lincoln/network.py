@@ -87,8 +87,7 @@ class NeuralNetwork(LayerBlock):
 
     def update_params(self) -> None:
 
-        for layer in self.layers:
-            self.optimizer.step(layer)
+        self.optimizer.step(self)
 
 
     def fit(self, X_train: Tensor, y_train: Tensor,

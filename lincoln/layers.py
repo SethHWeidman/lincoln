@@ -64,6 +64,14 @@ class Layer(object):
                 self.param_grads.append(operation.param_grad)
 
 
+    def _params(self) -> Tensor:
+
+        self.params = []
+        for operation in self.operations:
+            if issubclass(operation.__class__, ParamOperation):
+                self.params.append(operation.param)
+
+
 class Dense(Layer):
     '''
     Once we define all the Operations and the outline of a layer, all that remains to implement here
