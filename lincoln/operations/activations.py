@@ -57,3 +57,19 @@ class ReLU(Operation):
 
     def __repr__(self):
         return "ReLU"
+
+
+class LinearAct(Operation):
+    '''
+    Identity activation function
+    '''
+    def __init__(self) -> None:
+        super().__init__()
+
+
+    def _output(self) -> Tensor:
+        return self.input
+
+
+    def _input_grad(self, output_grad: Tensor) -> Tensor:
+        return output_grad

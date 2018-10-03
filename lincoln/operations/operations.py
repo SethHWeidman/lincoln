@@ -41,4 +41,3 @@ class BiasAdd(ParamOperation):
     def _param_grad(self, output_grad: Tensor) -> Tensor:
         param_grad = torch.ones_like(self.param) * output_grad
         return torch.sum(param_grad, dim=0).reshape(1, param_grad.shape[1])
-    
