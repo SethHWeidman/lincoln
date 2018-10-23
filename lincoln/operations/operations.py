@@ -10,14 +10,11 @@ class WeightMultiply(ParamOperation):
     def __init__(self, W: Tensor):
         super().__init__(W)
 
-
     def _output(self) -> Tensor:
         return torch.mm(self.input, self.param)
 
-
     def _input_grad(self, output_grad: Tensor) -> Tensor:
         return torch.mm(output_grad, self.param.transpose(0, 1))
-
 
     def _param_grad(self, output_grad: Tensor) -> Tensor:
         return torch.mm(self.input.transpose(0, 1), output_grad)
