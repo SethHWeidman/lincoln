@@ -11,7 +11,7 @@ def to_2d(a: Tensor,
     '''
 
     assert a.dim() == 1, \
-    "Input tensors must be 1 dimensional"
+        "Input tensors must be 1 dimensional"
 
     if type == "col":
         return a.reshape(tensor_size(a), 1)
@@ -24,7 +24,7 @@ def tensor_size(tensor: Tensor) -> int:
     Returns the number of elements in a 1D Tensor
     '''
     assert tensor.dim() == 1, \
-    "Input tensors must be 1 dimensional"
+        "Input tensors must be 1 dimensional"
 
     return list(tensor.size())[0]
 
@@ -43,7 +43,7 @@ def generate_batch(X: Tensor,
                    batch_size: int = 10) -> Batch:
 
     assert (X.dim() == 2) and (y.dim() == 2), \
-    "X and Y must be 2 dimensional"
+        "X and Y must be 2 dimensional"
 
     if start+batch_size > X.shape[0]:
         batch_size = X.shape[0] - start
@@ -58,7 +58,8 @@ def generate_batches(X: Tensor,
                      size: int = 32) -> Batch:
 
     if X.shape[0] != y.shape[0]:
-        raise ValueError('feature and label arrays must have the same first dimension')
+        raise ValueError('''feature and label arrays
+                         must have the same first dimension''')
 
     N = X.shape[0]
 
@@ -68,22 +69,39 @@ def generate_batches(X: Tensor,
         yield X_batch, y_batch
 
 
+# assert_same_shapes function
+def assert_same_shapes(tensors: Tuple[Tensor],
+                       tensor_grads: Tuple[Tensor]):
+
+    assert len(tensors) == len(tensor_grads)
+
+    if len(tensors) == 1:
+        tensors = tensors[0]
+    if len(tensor_grads) == 1:
+        tensor_grads = tensor_grads[0]
+
+    for tensor, tensor_grad in zip(tensors, tensor_grads):
+        assert_same_shape(tensor, tensor_grad)
+        return None
+
+
 def assert_same_shape(output: Tensor,
                       output_grad: Tensor):
     assert output.shape == output_grad.shape, \
-    '''
-    Two tensors should have the same shape; instead, first Tensor's shape is {0}
-    and second Tensor's shape is {1}.
-    '''.format(tuple(output_grad.shape), tuple(output.shape))
+        '''
+        Two tensors should have the same shape;
+        instead, first Tensor's shape is {0}
+        and second Tensor's shape is {1}.
+        '''.format(tuple(output_grad.shape), tuple(output.shape))
     return None
 
 
 def assert_dim(t: Tensor,
                dim: Tensor):
     assert len(t.shape) == dim, \
-    '''
-    Tensor expected to have dimension {0}, instead has dimension {1}
-    '''.format(dim, len(t.shape))
+        '''
+        Tensor expected to have dimension {0}, instead has dimension {1}
+        '''.format(dim, len(t.shape))
     return None
 
 

@@ -1,9 +1,10 @@
 import torch
 from torch import Tensor, nn
 
-from ..utils import assert_same_shape, assert_dim
+from ..utils import assert_dim
 
 from .base import ParamOperation, PyTorchOperation
+
 
 class Conv2D_Op(ParamOperation):
 

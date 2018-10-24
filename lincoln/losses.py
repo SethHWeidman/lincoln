@@ -1,10 +1,7 @@
-import typing
-
 import torch
 from torch import Tensor
 
-from .exc import MatchError
-from .utils import assert_same_shape, assert_dim, softmax
+from .utils import assert_same_shapes, assert_dim, softmax
 
 
 class Loss:
@@ -28,7 +25,7 @@ class Loss:
 
         self.input_grad = self._input_grad()
 
-        assert_same_shape(self.prediction, self.input_grad)
+        assert_same_shapes(self.prediction, self.input_grad)
 
         return self.input_grad
 
@@ -44,8 +41,8 @@ class MeanSquaredError(Loss):
     def __init__(self) -> None:
         super().__init__()
 
-
     def _output(self) -> float:
+
         loss = torch.sum(torch.pow(self.prediction - self.target, 2))
 
         return loss
@@ -59,12 +56,11 @@ class LogSoftmaxLoss(Loss):
     def __init__(self, eta=1e-9) -> None:
         super().__init__()
 
-
     def _output(self) -> float:
         softmax_preds = softmax(self.prediction)
 
         log_loss = -1.0 * self.target * torch.log(softmax_preds) - \
-        (1.0 - self.target) * torch.log(1 - softmax_preds)
+            (1.0 - self.target) * torch.log(1 - softmax_preds)
 
         return torch.sum(log_loss).item()
 
@@ -75,21 +71,22 @@ class LogSoftmaxLoss(Loss):
         return softmax_preds - self.target
 
 
-
 class LogSigmoidLoss(Loss):
     def __init__(self, eta=1e-6):
         super().__init__()
 
-        # Small parameter to avoid explosions when our probabilities get near 0 or 1
+        # Small parameter to avoid explosions when our
+        # probabilities get near 0 or 1
         # A better way to do this is use log probabilities everywhere
         self.eta = eta
 
     def _output(self) -> float:
         prediction, target = self.prediction, self.target
-        loss = torch.sum(-target*prediction - (1-target)*torch.log(1-torch.exp(prediction) + self.eta))
+        loss = torch.sum(-target*prediction -
+                         (1-target) *
+                         torch.log(1-torch.exp(prediction) + self.eta))
 
         return loss
-
 
     def _input_grad(self) -> Tensor:
 
@@ -97,9 +94,10 @@ class LogSigmoidLoss(Loss):
 
         exp_z = torch.exp(prediction)
         N = target.shape[0]
-        self.loss_grad = torch.sum(-target + (1-target)*exp_z/(1 - exp_z + self.eta), dim=1).view(N, -1)
-
-        assert_same_shape(prediction, self.loss_grad)
+        self.loss_grad = torch.sum(-target +
+                                   (1-target)*exp_z/(1 - exp_z + self.eta),
+                                   dim=1).\
+            view(N, -1)
 
         return self.loss_grad
 
@@ -161,8 +159,6 @@ class NLLLoss(Loss):
         exp_z = torch.exp(prediction)
         N = target.shape[0]
         self.loss_grad = torch.sum(-target + (1-target)*exp_z/(1 - exp_z + self.eta), dim=1).view(N, -1)
-
-        assert_same_shape(prediction, self.loss_grad)
 
         return self.loss_grad
 

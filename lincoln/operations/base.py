@@ -1,7 +1,7 @@
-import torch
-from torch import Tensor
+from torch import Tensor, nn
+from typing import Tuple
 
-from ..utils import assert_same_shape, assert_dim
+from ..utils import assert_same_shapes
 
 
 class Operation(object):
@@ -9,37 +9,29 @@ class Operation(object):
     def __init__(self):
         pass
 
+    def forward(self, *inputs) -> Tuple[Tensor]:
 
-    def forward(self, input: Tensor):
+        if len(inputs) == 1:
+            self.inputs = inputs[0]
 
-        self.input = input
+        self.outputs = self._outputs()
 
-        self.output = self._output()
+        return self.outputs
 
-        return self.output
+    def backward(self, *output_grads) -> Tuple[Tensor]:
 
+        assert_same_shapes(self.outputs, output_grads)
 
-    def backward(self, output_grad: Tensor) -> Tensor:
+        self._input_grads(output_grads)
 
-        assert_same_shape(self.output, output_grad)
+        assert_same_shapes(self.inputs, self.input_grads)
 
-        self._compute_grads(output_grad)
+        return self.input_grads
 
-        assert_same_shape(self.input, self.input_grad)
-        return self.input_grad
-
-
-    def _compute_grads(self, output_grad: Tensor) -> Tensor:
-
-        self.input_grad = self._input_grad(output_grad)
-
-        assert_same_shape(self.input, self.input_grad)
-        return self.input_grad
-
-    def _output(self) -> Tensor:
+    def _outputs(self) -> Tuple[Tensor]:
         raise NotImplementedError()
 
-    def _input_grad(self, output_grad: Tensor) -> Tensor:
+    def _input_grads(self, *output_grads) -> Tuple[Tensor]:
         raise NotImplementedError()
 
 
@@ -49,13 +41,22 @@ class ParamOperation(Operation):
         super().__init__()
         self.param = param
 
+    def backward(self, *output_grads) -> Tuple[Tensor]:
 
-    def _compute_grads(self, output_grad: Tensor) -> Tensor:
-        self.input_grad = self._input_grad(output_grad)
-        self.param_grad = self._param_grad(output_grad)
+        # import pdb; pdb.set_trace()
+        if len(output_grads) == 1:
+            output_grads = output_grads[0]
 
+        assert_same_shapes(self.outputs, output_grads)
 
-    def _param_grad(self, output_grad: Tensor) -> Tensor:
+        self.input_grads = self._input_grads(output_grads)
+        self.param_grad = self._param_grad(output_grads)
+
+        assert_same_shapes(self.inputs, self.input_grads)
+
+        return self.input_grads
+
+    def _param_grad(self, *output_grad) -> Tensor:
         raise NotImplementedError()
 
 
@@ -66,7 +67,6 @@ class PyTorchOperation(ParamOperation):
         self.op = nn.Linear(param.shape[0],
                             param.shape[0])
 
-
     def _output(self) -> Tensor:
 
         self.input_with_grad = self.input.detach()
@@ -74,13 +74,10 @@ class PyTorchOperation(ParamOperation):
 
         return self.op(self.input_with_grad)
 
-
     def _input_grad(self, output_grad: Tensor) -> Tensor:
 
         self.output.backward(gradient=output_grad)
-
         return self.input_with_grad.grad
 
     def _param_grad(self, output_grad: Tensor) -> Tensor:
-
         return self.op.weight.grad
