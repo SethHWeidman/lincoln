@@ -5,6 +5,7 @@
 *.c
 *.so
 *.o
+*.txt
 
 *data/*
 
