@@ -13,6 +13,8 @@ class Operation(object):
 
         if len(inputs) == 1:
             self.inputs = inputs[0]
+        else:
+            self.inputs = inputs
 
         self.outputs = self._outputs()
 

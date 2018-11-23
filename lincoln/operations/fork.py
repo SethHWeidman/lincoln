@@ -74,9 +74,10 @@ class Copy(Operation):
         '''
         Element-wise multiplication
         '''
+
         output = tuple()
         for i in range(self.num):
-            output = output + self.inputs
+            output = output + (self.inputs, )
 
         return output
 

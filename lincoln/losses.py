@@ -1,18 +1,17 @@
 import torch
 from torch import Tensor
 
-from .utils import assert_same_shapes, assert_dim, softmax
+from .utils import assert_same_shapes, softmax
 
 
-class Loss:
+class Loss(object):
 
     def __init__(self):
         pass
 
     def forward(self, prediction: Tensor, target: Tensor) -> float:
 
-        assert_dim(prediction, 2)
-        assert_dim(target, 2)
+        assert_same_shapes(prediction, target)
 
         self.prediction = prediction
         self.target = target
@@ -29,7 +28,7 @@ class Loss:
 
         return self.input_grad
 
-    def _output(self) -> Tensor:
+    def _output(self) -> float:
         raise NotImplementedError()
 
     def _input_grad(self) -> Tensor:
@@ -57,10 +56,19 @@ class LogSoftmaxLoss(Loss):
         super().__init__()
 
     def _output(self) -> float:
-        softmax_preds = softmax(self.prediction)
 
-        log_loss = -1.0 * self.target * torch.log(softmax_preds) - \
-            (1.0 - self.target) * torch.log(1 - softmax_preds)
+        eps = 1e-7
+        softmax_preds = torch.stack([softmax(pred)
+                                     for pred in self.prediction])
+
+        pos_class = torch.clamp(softmax_preds, min=eps)
+        neg_class = torch.clamp(softmax_preds, max=1 - eps)
+
+        log_loss = -1.0 * self.target * torch.log(pos_class) - \
+            (1.0 - self.target) * torch.log(1 - neg_class)
+
+        if torch.sum(log_loss).item() > 1000000:
+            import pdb; pdb.set_trace()
 
         return torch.sum(log_loss).item()
 

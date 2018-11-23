@@ -1,7 +1,7 @@
 from torch import Tensor
-from typing import List, Callable
+from typing import List
 
-from .layers import Layer
+from .layers import Layer, LSTMLayer
 from .losses import Loss, MeanSquaredError
 
 
@@ -55,7 +55,6 @@ class NeuralNetwork(LayerBlock):
         super().__init__(layers)
         self.loss = loss
 
-
     def forward_loss(self,
                      X_batch: Tensor,
                      y_batch: Tensor) -> float:
@@ -63,6 +62,42 @@ class NeuralNetwork(LayerBlock):
         prediction = self.forward(X_batch)
         return self.loss.forward(prediction, y_batch)
 
+    def train_batch(self,
+                    X_batch: Tensor,
+                    y_batch: Tensor) -> float:
+
+        prediction = self.forward(X_batch)
+
+        batch_loss = self.loss.forward(prediction, y_batch)
+        loss_grad = self.loss.backward()
+
+        self.backward(loss_grad)
+
+        return batch_loss
+
+
+class SequentialNeuralNetwork(NeuralNetwork):
+
+    def __init__(self,
+                 num_features: int,
+                 sequence_length: int,
+                 layers: List[Layer],
+                 loss: Loss = MeanSquaredError):
+        super().__init__(layers)
+        self.loss = loss
+        self.num_features = num_features
+        self.sequence_length = sequence_length
+        for layer in self.layers:
+            if issubclass(layer.__class__, LSTMLayer):
+                setattr(layer, "vocab_size", self.num_features)
+                setattr(layer, "sequence_length", self.sequence_length)
+
+    def forward_loss(self,
+                     X_batch: Tensor,
+                     y_batch: Tensor) -> float:
+
+        prediction = self.forward(X_batch)
+        return self.loss.forward(prediction, y_batch)
 
     def train_batch(self,
                     X_batch: Tensor,

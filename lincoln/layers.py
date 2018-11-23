@@ -3,6 +3,7 @@ from typing import List, Tuple, Dict
 import torch
 from torch import Tensor
 
+from .operations.block import LSTMNode
 from .operations.activations import Sigmoid
 from .operations.base import Operation, ParamOperation
 from .operations.dense import WeightMultiply, BiasAdd
@@ -84,13 +85,14 @@ class Dense(Layer):
     def _setup_layer(self, input_: Tensor) -> None:
 
         # weights
-        self.params.append(torch.empty(input_.shape[1], self.neurons).uniform_(-1, 1))
+        self.params.append(torch.randn(input_.shape[1], self.neurons).uniform_(-1, 1))
 
         # bias
-        self.params.append(torch.empty(1, self.neurons).uniform_(-1, 1))
+        self.params.append(torch.randn(1, self.neurons))
 
         self.operations = [WeightMultiply(self.params[0]),
-                           BiasAdd(self.params[1])] + [self.activation]
+                           BiasAdd(self.params[1]),
+                           self.activation]
 
         return None
 
@@ -126,11 +128,11 @@ class Conv2D(Layer):
         self.operations = []
 
         if self.pytorch:
-            self.operations.append(Conv2D_Op_Pyt(self.params[0]))
+            self.operations.append(Conv2D_Op_Pyt(self.params_dict[0]))
         elif self.cython:
-            self.operations.append(Conv2D_Op_cy(self.params[0]))
+            self.operations.append(Conv2D_Op_cy(self.params_dict[0]))
         else:
-            self.operations.append(Conv2D_Op(self.params[0]))
+            self.operations.append(Conv2D_Op(self.params_dict[0]))
 
         self.operations.append(self.activation)
 
@@ -144,64 +146,70 @@ class Conv2D(Layer):
 class LSTMLayer(object):
 
     def __init__(self,
-                 max_len: int,
-                 vocab_size: int,
-                 hidden_size: int = 100):
+                 neurons: int = 100,
+                 weight_scale: float = 0.01):
         super().__init__()
-        self.nodes = [LSTMNode(hidden_size, vocab_size) for _ in range(max_len)]
-        self.vocab_size = vocab_size
-        self.hidden_size = hidden_size
+
+        self.hidden_size = neurons
+        self.vocab_size: int = None
+        self.sequence_length: int = None
         self.first: bool = True
         self.start_H: Tensor = None
         self.start_C: Tensor = None
-        self.params: Dict[Tensor] = {}
+        self.params_dict: Dict[Tensor] = {}
+        self.weight_scale = weight_scale
 
+    def _init_nodes(self):
+        self.nodes = [LSTMNode(self.hidden_size, self.vocab_size)
+                      for _ in range(self.sequence_length)]
 
     def _init_params(self, input_: Tensor) -> Tensor:
         '''
         First dimension of input_ will be batch size
         '''
+        self._init_nodes()
+
         self.start_H = torch.zeros(input_.shape[0], self.hidden_size)
         self.start_C = torch.zeros(input_.shape[0], self.hidden_size)
-        self.params['Wf'] = torch.rand(self.hidden_size + self.vocab_size,
-                                       self.hidden_size)
-        self.params['Bf'] = torch.rand(1, self.hidden_size)
+        self.params_dict['Wf'] = torch.randn(self.hidden_size + self.vocab_size, self.hidden_size)
+        self.params_dict['Bf'] = torch.randn(1, self.hidden_size)
 
-        self.params['Wi'] = torch.rand(self.hidden_size + self.vocab_size,
-                                       self.hidden_size)
-        self.params['Bi'] = torch.rand(1, self.hidden_size)
+        self.params_dict['Wi'] = torch.randn(self.hidden_size + self.vocab_size, self.hidden_size)
+        self.params_dict['Bi'] = torch.randn(1, self.hidden_size)
 
-        self.params['Wc'] = torch.rand(self.hidden_size + self.vocab_size,
-                                       self.hidden_size)
-        self.params['Bc'] = torch.rand(1, self.hidden_size)
+        self.params_dict['Wc'] = torch.randn(self.hidden_size + self.vocab_size, self.hidden_size)
+        self.params_dict['Bc'] = torch.randn(1, self.hidden_size)
 
-        self.params['Wo'] = torch.rand(self.hidden_size + self.vocab_size,
-                                       self.hidden_size)
-        self.params['Bo'] = torch.rand(1, self.hidden_size)
+        self.params_dict['Wo'] = torch.randn(self.hidden_size + self.vocab_size, self.hidden_size)
+        self.params_dict['Bo'] = torch.randn(1, self.hidden_size)
 
-        self.params['Wv'] = torch.rand(self.hidden_size,
+        self.params_dict['Wv'] = torch.randn(self.hidden_size,
                                        self.vocab_size)
-        self.params['Bv'] = torch.rand(1, self.vocab_size)
+        self.params_dict['Bv'] = torch.randn(1, self.vocab_size)
 
-        for param in self.params.values():
+        # for param in self.params_dict.values():
+        #     param.mul_(self.weight_scale)
+
+        for param in self.params_dict.values():
             param.requires_grad = True
 
-
     def _zero_param_grads(self) -> None:
-        for param in self.params.values():
+        for param in self.params_dict.values():
             if param.grad is not None:
                 param.grad.data.zero_()
 
+    def _params(self) -> None:
+        return tuple(self.params_dict.values())
 
-    def _params(self) -> Tuple[Tensor]:
-        return tuple(self.params.values())
+    def _param_grads(self) -> None:
+        return tuple(param.grad for param in self.params_dict.values())
 
-
-    def _param_grads(self) -> Tuple[Tensor]:
-        return tuple(param.grad for param in self.params.values())
-
+    def _clip_gradients(self) -> None:
+        for grad in self.param_grads:
+            grad.data = torch.clamp(grad.data, -2, 2)
 
     def forward(self, input_: Tensor) -> Tensor:
+
         if self.first:
             self._init_params(input_)
             self.first = False
@@ -209,33 +217,39 @@ class LSTMLayer(object):
         # shape: batch size by sequence length by vocab_size
         self.input_ = input_
 
-        H_in = torch.clone(self.start_H)
-        C_in = torch.clone(self.start_C)
+        batch_size = self.input_.shape[0]
+
+        H_in = torch.clone(self.start_H.expand(batch_size,
+                                               self.hidden_size))
+        C_in = torch.clone(self.start_C.expand(batch_size,
+                                               self.hidden_size))
 
         self.output = torch.zeros_like(self.input_)
 
         seq_len = self.input_.shape[1]
-
         for i in range(seq_len):
 
             # pass info forward through the nodes
-            elem_out, H_in, C_in = self.nodes[i].forward(self.params, self.input_[:, i, :],
-                                                         H_in, C_in)
+            elem_out, H_in, C_in = self.nodes[i].\
+                forward(self.params_dict, self.input_[:, i, :], H_in, C_in)
 
             self.output[:, i, :] = elem_out
 
-        self.start_H = H_in
-        self.start_C = C_in
+        self.start_H = H_in.mean(dim=0)
+        self.start_C = C_in.mean(dim=0)
 
         return self.output
 
-
     def backward(self, output_grad: Tensor) -> Tensor:
 
-#         self._zero_param_grads()
+        self._zero_param_grads()
 
-        dH_next = torch.zeros_like(self.start_H)
-        dC_next = torch.zeros_like(self.start_C)
+        batch_size = output_grad.shape[0]
+
+        dH_next = torch.zeros_like(self.start_H.expand(batch_size,
+                                                       self.hidden_size))
+        dC_next = torch.zeros_like(self.start_C.expand(batch_size,
+                                                       self.hidden_size))
 
         self.input_grad = torch.zeros_like(self.input_)
 
@@ -243,9 +257,13 @@ class LSTMLayer(object):
 
             # pass info forward through the nodes
             grad_out, dH_next, dC_next = \
-                self.nodes[i].backward(self.params, output_grad[:, i, :],
+                self.nodes[i].backward(self.params_dict, output_grad[:, i, :],
                                        dH_next, dC_next)
 
             self.input_grad[:, i, :] = grad_out
+
+        self.params = self._params()
+        self.param_grads = self._param_grads()
+        self._clip_gradients()
 
         return self.input_grad

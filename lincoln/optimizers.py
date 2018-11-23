@@ -22,7 +22,8 @@ class SGD(Optimizer):
         self.lr = lr
 
     def _update_rule(self, **kwargs) -> None:
-        kwargs['param'].sub_(self.lr*kwargs['grad'])
+        # import pdb; pdb.set_trace()
+        kwargs['param'].data.sub_(self.lr*kwargs['grad'].data)
 
 
 class SGDMomentum(Optimizer):
@@ -40,7 +41,6 @@ class SGDMomentum(Optimizer):
                                for param in self.net.params()]
             self.first = False
 
-        # import pdb; pdb.set_trace()
         for (param, param_grad, velocity) in zip(self.net.params(),
                                                  self.net.param_grads(),
                                                  self.velocities):
