@@ -67,8 +67,8 @@ class LogSoftmaxLoss(Loss):
         log_loss = -1.0 * self.target * torch.log(pos_class) - \
             (1.0 - self.target) * torch.log(1 - neg_class)
 
-        if torch.sum(log_loss).item() > 1000000:
-            import pdb; pdb.set_trace()
+        # if torch.sum(log_loss).item() > 1000000:
+            # import pdb; pdb.set_trace()
 
         return torch.sum(log_loss).item()
 
