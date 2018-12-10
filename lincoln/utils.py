@@ -29,7 +29,7 @@ def tensor_size(tensor: Tensor) -> int:
     return list(tensor.size())[0]
 
 
-def permute_data(X, y):
+def permute_data(X: Tensor, y: Tensor, seed=1):
     perm = torch.randperm(X.shape[0])
     return X[perm], y[perm]
 
