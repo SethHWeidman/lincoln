@@ -9,9 +9,11 @@ import numpy as np
 from torch import Tensor
 import torch
 
-from lincoln.operations import Operation, ParamOperation, WeightMultiply
+from lincoln.operations.base import Operation, ParamOperation
+from lincoln.operations.dense import WeightMultiply
 from lincoln.layers import Layer, Dense
-from lincoln.activations import Activation, LinearAct
+from lincoln.operations.activations import Activation, LinearAct
+
 
 class Conv2D(ParamOperation):
 
@@ -21,17 +23,14 @@ class Conv2D(ParamOperation):
         self.param_size = param.shape[0]
         self.param_pad = self.param_size // 2
 
-
     def _pad_1d_obs(self, obs: Tensor) -> Tensor:
         z = torch.Tensor([0])
         z = z.repeat(self.param_pad)
         return torch.cat([z, obs, z])
 
-
     def _pad_1d(self, inp: Tensor) -> Tensor:
         outs = [self._pad_1d_obs(obs) for obs in inp]
         return torch.stack(outs)
-
 
     def _pad_2d_obs(self,
                     inp: Tensor):
@@ -40,12 +39,10 @@ class Conv2D(ParamOperation):
         other = torch.zeros(self.param_pad, inp.shape[0] + self.param_pad * 2)
         return torch.cat([other, inp_pad, other])
 
-
     def _pad_2d(self, inp: Tensor):
 
         outs = [self._pad_2d_obs(obs) for obs in inp]
         return torch.stack(outs)
-
 
     def _compute_output_obs(self,
                             obs: Tensor):
@@ -63,12 +60,10 @@ class Conv2D(ParamOperation):
                         out[o_w][o_h] += self.param[p_w][p_h] * obs_pad[o_w+p_w][o_h+p_h]
         return out
 
+    def _outputs(self):
 
-    def _output(self):
-
-        outs = [self._compute_output_obs(obs) for obs in self.input_]
+        outs = [self._compute_output_obs(obs) for obs in self.inputs]
         return torch.stack(outs)
-
 
     def _compute_grads_obs(self,
                            input_obs: Tensor,
@@ -86,22 +81,20 @@ class Conv2D(ParamOperation):
 
         return input_grad
 
+    def _input_grads(self, output_grad: Tensor) -> Tensor:
 
-    def _input_grad(self, output_grad: Tensor) -> Tensor:
-
-        grads = [self._compute_grads_obs(self.input_[i], output_grad[i]) for i in range(output_grad.shape[0])]
+        grads = [self._compute_grads_obs(self.inputs[i], output_grad[i]) for i in range(output_grad.shape[0])]
 
         return torch.stack(grads)
 
-
     def _param_grad(self, output_grad: Tensor) -> Tensor:
 
-        inp_pad = self._pad_2d(self.input_)
+        inp_pad = self._pad_2d(self.inputs)
 
         param_grad = torch.zeros_like(self.param)
         img_shape = output_grad.shape[1:]
 
-        for i in range(self.input_.shape[0]):
+        for i in range(self.inputs.shape[0]):
             for o_w in range(img_shape[0]):
                 for o_h in range(img_shape[1]):
                     for p_w in range(self.param_size):
@@ -120,7 +113,7 @@ from conv_c import (_pad_1d_obs_conv,
                     _compute_grads_conv,
                     _param_grad_conv)
 
-class Conv2D_c(ParamOperation):
+class Conv2D_cy(ParamOperation):
 
     def __init__(self,
                  param: Tensor):
@@ -128,38 +121,31 @@ class Conv2D_c(ParamOperation):
         self.param_size = param.shape[0]
         self.param_pad = self.param_size // 2
 
-
     def _pad_1d_obs(self, obs: Tensor) -> Tensor:
         obs_np = obs.numpy()
         return Tensor(_pad_1d_obs_conv(obs_np, self.param_pad))
 
-
     def _pad_1d(self, inp: Tensor) -> Tensor:
         inp_np = inp.numpy()
         return Tensor(_pad_1d_conv(inp_np, self.param_pad))
-
 
     def _pad_2d_obs(self,
                     inp: Tensor):
         inp_np = inp.numpy()
         return Tensor(_pad_2d_obs_conv(inp_np, self.param_pad))
 
-
     def _pad_2d(self, inp: Tensor):
         inp_np = inp.numpy()
         return Tensor(_pad_2d_conv(inp_np, self.param_pad))
-
 
     def _compute_output_obs(self,
                             obs: Tensor):
         obs_np = obs.numpy()
         return Tensor(_compute_output_obs_conv(obs_np, self.param.numpy()))
 
-
-    def _output(self, ):
-        return Tensor(_compute_output_conv(self.input_.numpy(),
+    def _outputs(self, ):
+        return Tensor(_compute_output_conv(self.inputs.numpy(),
                                            self.param.numpy()))
-
 
     def _compute_grads_obs(self,
                            input_obs: Tensor,
@@ -168,20 +154,19 @@ class Conv2D_c(ParamOperation):
         output_grad_obs = output_grad_obs.numpy()
         return Tensor(_compute_grads_obs_conv(input_obs_np, output_grad_obs, self.param))
 
-
-    def _input_grad(self, output_grad: Tensor) -> Tensor:
+    def _input_grads(self, output_grad: Tensor) -> Tensor:
         output_grad_np = output_grad.numpy()
-        return Tensor(_compute_grads_conv(self.input_.numpy(),
+        return Tensor(_compute_grads_conv(self.inputs.numpy(),
                                           output_grad_np,
                                           self.param.numpy()))
-
 
     def _param_grad(self, output_grad: Tensor) -> Tensor:
 
         output_grad_np = output_grad.numpy()
-        return Tensor(_param_grad_conv(self.input_.numpy(),
+        return Tensor(_param_grad_conv(self.inputs.numpy(),
                                        output_grad_np,
                                        self.param.numpy()))
+
 
 def main(fil: Tensor,
          imgs: Tensor):
@@ -200,7 +185,7 @@ def main(fil: Tensor,
         return None
 
     a = Conv2D(fil)
-    b = Conv2D_c(fil)
+    b = Conv2D_cy(fil)
 
     _test_conv_class(a)
     _test_conv_class(b)
