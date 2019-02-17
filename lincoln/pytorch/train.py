@@ -50,10 +50,9 @@ class PyTorchTrainer(object):
 
                 self.optim.zero_grad()   # zero the gradient buffers
                 output = self.model(X_batch)
-                # import pdb; pdb.set_trace()
                 loss = self.loss(output, y_batch)
                 loss.backward()
-                self.optim.step()    # Does the update
+                self.optim.step()   
 
             self.optim.zero_grad()
             output = self.model(X_test)

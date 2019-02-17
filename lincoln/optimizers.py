@@ -51,7 +51,6 @@ class SGDMomentum(Optimizer):
     def _update_rule(self, **kwargs) -> None:
 
             # Update velocity
-            # import pdb; pdb.set_trace()
             kwargs['velocity'].mul_(self.momentum).add_(self.lr * kwargs['grad'])
 
             # Use this to update parameters

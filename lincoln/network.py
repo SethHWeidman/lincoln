@@ -14,11 +14,13 @@ class LayerBlock(object):
         super().__init__()
         self.layers = layers
 
-    def forward(self, X_batch: Tensor) -> Tensor:
+    def forward(self,
+                X_batch: Tensor,
+                inference=False) -> Tensor:
 
         X_out = X_batch
         for layer in self.layers:
-            X_out = layer.forward(X_out)
+            X_out = layer.forward(X_out, inference)
 
         return X_out
 

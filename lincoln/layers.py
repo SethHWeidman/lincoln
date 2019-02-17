@@ -22,10 +22,11 @@ class Layer(object):
         self.param_grads: List[Tensor] = []
         self.operations: List[Operation] = []
 
-    def _setup_layer(self, num_in: int) -> None:
+    def _setup_layer(self, input_: Tensor) -> None:
         pass
 
-    def forward(self, input_: Tensor) -> Tensor:
+    def forward(self, input_: Tensor,
+                inference=False) -> Tensor:
         if self.first:
             self._setup_layer(input_)
             self.first = False
@@ -55,14 +56,14 @@ class Layer(object):
 
         return input_grad
 
-    def _param_grads(self) -> Tensor:
+    def _param_grads(self) -> None:
 
         self.param_grads = []
         for operation in self.operations:
             if issubclass(operation.__class__, ParamOperation):
                 self.param_grads.append(operation.param_grad)
 
-    def _params(self) -> Tensor:
+    def _params(self) -> None:
 
         self.params = []
         for operation in self.operations:
@@ -85,7 +86,7 @@ class Dense(Layer):
     def _setup_layer(self, input_: Tensor) -> None:
 
         # weights
-        self.params.append(torch.randn(input_.shape[1], self.neurons).uniform_(-1, 1))
+        self.params.append(torch.randn(input_.shape[1], self.neurons))
 
         # bias
         self.params.append(torch.randn(1, self.neurons))
@@ -141,6 +142,75 @@ class Conv2D(Layer):
 
         return None
 
+class BatchNorm(Layer):
+
+    def __init__(self) -> None:
+        pass
+
+    def _setup_layer(self, input_: Tensor) -> None:
+        obs = input_[0]
+
+        self.aggregates = (0,
+                           np.zeros_like(obs),
+                           np.zeros_like(obs))
+
+        self.params: List[float] = []
+        self.params.append(0.)
+        self.params.append(1.)
+
+    def _update_stats(self, new_input: Tensor):
+
+        (count, mean, M2) = self.aggregates
+        count += 1
+        delta = new_input - mean
+        mean += delta / count
+        delta2 = new_input - mean
+        M2 += delta * delta2
+
+        self.aggregates = (count, mean, M2)
+
+
+    def forward(self, input_: Tensor,
+                inference=False) -> Tensor:
+
+        self.input_ = input_
+        # https://en.wikipedia.org/wiki/Algorithms_for_calculating_variance
+        if not inference:
+            for obs in input_:
+                self._update_stats(obs)
+
+            self.mean = input_.mean(axis=0)
+            self.var = input_.var(axis=0)
+        else:
+            self.mean, self.var, samp_var = finalize(self.aggregates)
+
+        self.output = (input_ - self.mean) / (self.var + 1e-8)
+
+        self.output *= self.params[0] # gamma
+        self.output += self.params[0] # beta
+
+        return self.output
+
+    def backward(self,
+                 output_grad: Tensor) -> Tensor:
+
+        assert_same_shape(self.output, output_grad)
+
+        # https://kratzert.github.io/2016/02/12/understanding-the-gradient-flow-through-the-batch-normalization-layer.html
+        dbeta = np.sum(output_grad, axis=0)
+        dgamma = np.sum((self.input_ - mu) * \
+                        np.sqrt((self.var + 1e-8)) * output_grad, axis=0)
+
+        self.param_grads = [dbeta, dgamma]
+
+        input_grad = (self.params[1] * np.sqrt(self.var + 1e-8) / N) * \
+                     (N * output_grad - np.sum(output_grad, axis=0) - \
+                      (self.input_ - self.mean) * (self.var + 1e-8)**(-1.0) * \
+                      np.sum(output_grad * (input_ - self.mean), axis=0))
+
+        assert_same_shape(self.input_, input_grad)
+
+        return input_grad
 
 # LSTMLayer class - series of operations
 class LSTMLayer(object):
