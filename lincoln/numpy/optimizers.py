@@ -4,34 +4,36 @@ import numpy as np
 class Optimizer(object):
     def __init__(self,
                  lr: float = 0.01,
-                 exp_decay: float = 0,
-                 final_lr_linear: float = 0):
+                 final_lr: float = 0,
+                 decay_type: str = None) -> None:
         self.lr = lr
-        self.exp_decay = exp_decay # check this
-        self.final_lr_linear = final_lr_linear
-        if self.exp_decay or self.final_lr_linear:
-            self.decay_lr = True
-        else:
-            self.decay_lr = False
+        self.final_lr = final_lr  # TODO: make decay_type mandatory if final_lr specified
+        self.decay_type = decay_type
         self.first = True
 
-    def _decay_lr(self,
-                  epoch: int = 0,
-                  max_epochs: int = 0) -> None:
+    def _setup_decay(self) -> None:
 
-        self.lr_orig = self.lr
+        if not self.decay_type:
+            return
+        elif self.decay_type == 'exponential':
+            self.decay_per_epoch = np.power(self.final_lr / self.lr,
+                                       1.0 / self.max_epochs)
+        elif self.decay_type == 'linear':
+            self.decay_per_epoch = (self.lr - self.final_lr) / self.max_epochs
 
-        if self.exp_decay:
-            self.lr *= self.exp_decay
+    def _decay_lr(self) -> None:
 
-        elif self.final_lr_linear:
-            self.lr = self.lr_orig - (self.lr_orig - self.final_lr_linear) * \
-            ((epoch+1) / max_epochs)
-        else:
-            pass
+        if not self.decay_type:
+            return
 
+        if self.decay_type == 'exponential':
+            self.lr *= self.decay_per_epoch
 
-    def step(self) -> None:
+        elif self.decay_type == 'linear':
+            self.lr -= self.decay_per_epoch
+
+    def step(self,
+             epoch: int = 0) -> None:
 
         for (param, param_grad) in zip(self.net.params(),
                                        self.net.param_grads()):
@@ -45,9 +47,9 @@ class Optimizer(object):
 class SGD(Optimizer):
     def __init__(self,
                  lr: float = 0.01,
-                 exp_decay: float = 0,
-                 final_lr_linear: float = 0) -> None:
-        super().__init__(lr, exp_decay, final_lr_linear)
+                 final_lr: float = 0,
+                 decay_type: str = None) -> None:
+        super().__init__(lr, final_lr, decay_type)
 
     def _update_rule(self, **kwargs) -> None:
 
@@ -59,10 +61,10 @@ class SGD(Optimizer):
 class SGDMomentum(Optimizer):
     def __init__(self,
                  lr: float = 0.01,
-                 exp_decay: float = 0,
-                 final_lr_linear: float = 0,
+                 final_lr: float = 0,
+                 decay_type: str = None,
                  momentum: float = 0.9) -> None:
-        super().__init__(lr, exp_decay, final_lr_linear)
+        super().__init__(lr, final_lr, decay_type)
         self.momentum = momentum
 
     def step(self) -> None:
@@ -91,9 +93,9 @@ class SGDMomentum(Optimizer):
 class AdaGrad(Optimizer):
     def __init__(self,
                  lr: float = 0.01,
-                 exp_decay: float = 0,
+                 final_lr_exp: float = 0,
                  final_lr_linear: float = 0) -> None:
-        super().__init__(lr, exp_decay, final_lr_linear)
+        super().__init__(lr, final_lr_exp, final_lr_linear)
         self.eps = 1e-7
 
     def step(self) -> None:
@@ -141,5 +143,5 @@ class RegularizedSGD(Optimizer):
     def _update_rule(self, **kwargs) -> None:
 
             # Use this to update parameters
-            kwargs['param'] -= self.lr * (
-                kwargs['grad'] + self.alpha * kwargs['param'])
+            kwargs['param'] -= (
+                self.lr * kwargs['grad'] + self.alpha * kwargs['param'])

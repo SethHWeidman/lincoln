@@ -36,6 +36,9 @@ class Trainer(object):
             restart: bool = True,
             early_stopping: bool = True)-> None:
 
+        setattr(self.optim, 'max_epochs', epochs)
+        self.optim._setup_decay()
+
         np.random.seed(seed)
         if restart:
             for layer in self.net.layers:
@@ -60,9 +63,20 @@ class Trainer(object):
 
                 self.optim.step()
 
+                if ii % 1 == 0:
+                    test_preds = self.net.forward(X_batch, inference=True)
+                    batch_loss = self.net.loss.forward(test_preds, y_batch)
+                    print(batch_loss)
+
+                if ii % 10 == 0 and ii > 0:
+                    print("Evaluating on test set...")
+                    print(f'''The model validation accuracy is:
+                    {np.equal(np.argmax(self.net.forward(X_test, inference=True), axis=1),
+                    np.argmax(y_test, axis=1)).sum() * 100.0 / X_test.shape[0]:.2f}%''')
+
             if (e+1) % eval_every == 0:
 
-                test_preds = self.net.forward(X_test)
+                test_preds = self.net.forward(X_test, inference=True)
                 loss = self.net.loss.forward(test_preds, y_test)
 
                 if early_stopping:
@@ -78,9 +92,8 @@ class Trainer(object):
                 else:
                     print(f"Validation loss after {e+1} epochs is {loss:.3f}")
 
-            if self.optim.decay_lr:
-                self.optim._decay_lr(epoch=e+1,
-                                     max_epochs=epochs)
+            if self.optim.final_lr:
+                self.optim._decay_lr()
 
 
     def generate_batches(self,

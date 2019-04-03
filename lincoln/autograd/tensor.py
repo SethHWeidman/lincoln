@@ -1,5 +1,4 @@
 
-import inspect
 from typing import List, NamedTuple, Callable, Optional, Union
 
 import numpy as np
@@ -121,7 +120,8 @@ class Tensor:
         return _select_index_axis_1(self, ind)
 
     def zero_grad(self) -> None:
-        self.grad = Tensor(np.zeros_like(self.data, dtype=np.float64), no_grad = True)
+        self.grad = Tensor(np.zeros_like(self.data, dtype=np.float64),
+                           no_grad = True)
 
     def backward(self, grad: 'Tensor' = None) -> None:
         if self.no_grad:
@@ -139,6 +139,7 @@ class Tensor:
     def sum(self) -> 'Tensor':
         return tensor_sum(self)
 
+
 def tensor_sum(t: Tensor) -> Tensor:
 
     def _forward(t: Tensor):
@@ -153,6 +154,7 @@ def tensor_sum(t: Tensor) -> Tensor:
     ]
 
     return Tensor(data, depends_on)
+
 
 ########### SPECIAL GRAD FUNCTIONS ##################
 

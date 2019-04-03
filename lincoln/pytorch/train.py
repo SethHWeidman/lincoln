@@ -1,20 +1,25 @@
 from typing import Tuple
 
+import torch
 from torch import Tensor
 from torch.optim import Optimizer
 from torch.nn.modules.loss import _Loss
 
 from lincoln.utils import permute_data
 from .model import PyTorchModel
+from .preprocessor import PyTorchPreprocessor
+
 
 class PyTorchTrainer(object):
     def __init__(self,
                  model: PyTorchModel,
                  optim: Optimizer,
-                 criterion: _Loss):
+                 criterion: _Loss,
+                 preprocessor: PyTorchPreprocessor = None):
         self.model = model
         self.optim = optim
         self.loss = criterion
+        self.preprocessor = preprocessor
         self._check_optim_net_aligned()
 
     def _check_optim_net_aligned(self):
@@ -48,13 +53,20 @@ class PyTorchTrainer(object):
 
             for ii, (X_batch, y_batch) in enumerate(batch_generator):
 
+                if self.preprocessor:
+                    X_batch = self.preprocessor.transform(X_batch)
+
                 self.optim.zero_grad()   # zero the gradient buffers
                 output = self.model(X_batch)
+
                 loss = self.loss(output, y_batch)
                 loss.backward()
-                self.optim.step()   
+                self.optim.step()
 
-            self.optim.zero_grad()
-            output = self.model(X_test)
-            loss = self.loss(output, y_test)
-            print(e, loss)
+            if e % eval_every == 0:
+                with torch.no_grad():
+                    if self.preprocessor and e == 0:
+                        X_test = self.preprocessor.transform(X_test)
+                    output = self.model(X_test)
+                    loss = self.loss(output, y_test)
+                    print(e, loss)

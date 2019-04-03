@@ -44,10 +44,15 @@ class Loss(object):
 
 class MeanSquaredError(Loss):
 
-    def __init__(self) -> None:
+    def __init__(self,
+                 normalize: bool = False) -> None:
         super().__init__()
+        self.normalize = normalize
 
     def _output(self) -> float:
+
+        if self.normalize:
+            self.prediction = self.prediction / self.prediction.sum(axis=1, keepdims=True)
 
         loss = np.sum(np.power(self.prediction - self.target, 2)) / self.prediction.shape[0]
 
@@ -86,7 +91,7 @@ class SoftmaxCrossEntropy(Loss):
         softmax_cross_entropy_loss = -1.0 * self.target * np.log(self.softmax_preds) - \
             (1.0 - self.target) * np.log(1 - self.softmax_preds)
 
-        return np.sum(softmax_cross_entropy_loss)
+        return np.sum(softmax_cross_entropy_loss) / self.prediction.shape[0]
 
     def _input_grad(self) -> np.ndarray:
 
@@ -94,7 +99,7 @@ class SoftmaxCrossEntropy(Loss):
         if self.single_class:
             return unnormalize(self.softmax_preds - self.target)
         else:
-            return self.softmax_preds - self.target
+            return (self.softmax_preds - self.target) / self.prediction.shape[0]
 
 
 class SoftmaxCrossEntropyComplex(SoftmaxCrossEntropy):

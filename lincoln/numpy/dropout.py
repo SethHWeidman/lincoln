@@ -1,4 +1,5 @@
 import numpy as np
+from numpy import ndarray
 
 from .base import Operation
 
@@ -9,7 +10,7 @@ class Dropout(Operation):
         super().__init__()
         self.keep_prob = keep_prob
 
-    def _output(self, inference: bool) -> np.ndarray:
+    def _output(self, inference: bool) -> ndarray:
         if inference:
             return self.inputs * self.keep_prob
         else:
@@ -17,5 +18,5 @@ class Dropout(Operation):
                                            size=self.inputs.shape)
             return self.inputs * self.mask
 
-    def _input_grad(self, output_grad: np.ndarray) -> np.ndarray:
+    def _input_grad(self, output_grad: ndarray) -> ndarray:
         return output_grad * self.mask

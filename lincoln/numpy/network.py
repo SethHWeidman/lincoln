@@ -65,16 +65,18 @@ class NeuralNetwork(LayerBlock):
 
     def forward_loss(self,
                      X_batch: np.ndarray,
-                     y_batch: np.ndarray) -> float:
+                     y_batch: np.ndarray,
+                     inference: bool = False) -> float:
 
-        prediction = self.forward(X_batch)
+        prediction = self.forward(X_batch, inference)
         return self.loss.forward(prediction, y_batch)
 
     def train_batch(self,
                     X_batch: np.ndarray,
-                    y_batch: np.ndarray) -> float:
+                    y_batch: np.ndarray,
+                    inference: bool = False) -> float:
 
-        prediction = self.forward(X_batch)
+        prediction = self.forward(X_batch, inference)
 
         batch_loss = self.loss.forward(prediction, y_batch)
         loss_grad = self.loss.backward()
