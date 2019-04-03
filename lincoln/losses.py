@@ -134,13 +134,6 @@ class CrossEntropy(Loss):
         # Picking out particular elements denoted by the correct labels
         grads = mask * -1/ps
 
-        # Create a mask for our correct labels, with 1s for the true labels, 0 elsewhere
-        mask = torch.zeros_like(ps)
-        mask.scatter_(1, ys, 1)
-
-        # Picking out particular elements denoted by the correct labels
-        grads = mask * -1/ps
-
         return grads
 
 

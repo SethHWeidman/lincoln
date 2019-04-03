@@ -1,5 +1,4 @@
 
-import inspect
 from typing import List, NamedTuple, Callable, Optional, Union
 
 import numpy as np
@@ -28,6 +27,7 @@ def collapse_sum(grad: np.ndarray,
                  t: 'Tensor') -> np.ndarray:
 
     # Sum out added dims
+    # import pdb; pdb.set_trace()
     ndims_added = grad.ndim - t.data.ndim
     for _ in range(ndims_added):
         grad = grad.sum(axis=0)
@@ -50,7 +50,7 @@ class Tensor:
         self.depends_on = depends_on or []
         self.no_grad = no_grad
         self.shape = self.data.shape
-        self.grad: Optional['Tensor'] = None
+        self.grad: Optional[np.ndarray] = None
         if not self.no_grad:
             self.zero_grad()
 
@@ -107,6 +107,9 @@ class Tensor:
     def repeat(self, repeats: int) -> 'Tensor':
         return _repeat(self, repeats)
 
+    def mean_axis_0(self) -> 'Tensor':
+        return _mean_axis_0(self)
+
     def expand_dims_axis_1(self) -> 'Tensor':
         return _expand_dims_axis_1(self)
 
@@ -117,24 +120,25 @@ class Tensor:
         return _select_index_axis_1(self, ind)
 
     def zero_grad(self) -> None:
-        self.grad = Tensor(np.zeros_like(self.data, dtype=np.float64), no_grad = True)
+        self.grad = Tensor(np.zeros_like(self.data, dtype=np.float64),
+                           no_grad = True)
 
     def backward(self, grad: 'Tensor' = None) -> None:
-
         if self.no_grad:
             return
 
         if self.shape == ():
-            grad = Tensor(np.array(1.0))
+            grad = np.array(1.0)
 
-        self.grad.data = self.grad.data + grad.data
+        self.grad = self.grad + grad
 
         for dependency in self.depends_on:
-            backward_grad = dependency.grad_fn(grad.data)
-            dependency.tensor.backward(Tensor(backward_grad))
+            backward_grad = dependency.grad_fn(grad)
+            dependency.tensor.backward(backward_grad)
 
     def sum(self) -> 'Tensor':
         return tensor_sum(self)
+
 
 def tensor_sum(t: Tensor) -> Tensor:
 
@@ -150,6 +154,7 @@ def tensor_sum(t: Tensor) -> Tensor:
     ]
 
     return Tensor(data, depends_on)
+
 
 ########### SPECIAL GRAD FUNCTIONS ##################
 
@@ -283,7 +288,7 @@ def _concat(t1: Tensor, t2: Tensor) -> Tensor:
 
     return Tensor(data, depends_on)
 
-def _repeat(t: Tensor, repeats: int) -> Tensor:
+def _repeat_axis_0(t: Tensor, repeats: int) -> Tensor:
 
     assert t.shape[0] == 1,\
     "Repeat operation should only be used on rows"
@@ -373,3 +378,25 @@ def _select_index_axis_1(t: Tensor, ind: int) -> Tensor:
     ]
 
     return Tensor(data, depends_on, t.no_grad)
+
+
+def _mean_axis_0(t: Tensor) -> Tensor:
+
+    assert len(t.shape) == 2,\
+    "Mean_axis_0 should only be used on 2d Tensors"
+
+    batch_size = t.shape[0]
+
+    def _forward(t: Tensor) -> np.ndarray:
+        return t.data.mean(axis=0)
+
+    def t_grad(grad: np.ndarray) -> np.ndarray:
+        return grad.repeat(batch_size, axis=0) / batch_size
+
+    data = _forward(t)
+
+    depends_on = [
+        Dependency(t, t_grad)
+    ]
+
+    return Tensor(data, depends_on)
