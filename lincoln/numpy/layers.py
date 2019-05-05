@@ -3,7 +3,7 @@ from typing import List
 import numpy as np
 from numpy import ndarray
 
-from .activations import Sigmoid, Linear
+from .activations import Linear
 from .base import Operation, ParamOperation
 from .conv import Conv2D_Op
 from .dense import WeightMultiply, BiasAdd
@@ -18,15 +18,15 @@ class Layer(object):
                  neurons: int) -> None:
         self.neurons = neurons
         self.first = True
-        self.params: List[np.ndarray] = []
-        self.param_grads: List[np.ndarray] = []
+        self.params: List[ndarray] = []
+        self.param_grads: List[ndarray] = []
         self.operations: List[Operation] = []
 
-    def _setup_layer(self, input_: np.ndarray) -> None:
+    def _setup_layer(self, input_: ndarray) -> None:
         pass
 
-    def forward(self, input_: np.ndarray,
-                inference=False) -> np.ndarray:
+    def forward(self, input_: ndarray,
+                inference=False) -> ndarray:
 
         if self.first:
             self._setup_layer(input_)
@@ -42,7 +42,7 @@ class Layer(object):
 
         return self.output
 
-    def backward(self, output_grad: np.ndarray) -> np.ndarray:
+    def backward(self, output_grad: ndarray) -> ndarray:
 
         assert_same_shape(self.output, output_grad)
 
@@ -73,10 +73,7 @@ class Layer(object):
 
 
 class Dense(Layer):
-    '''
-    Once we define all the Operations and the outline of a layer, all that remains to implement here
-    is the _setup_layer function!
-    '''
+
     def __init__(self,
                  neurons: int,
                  activation: Operation = Linear(),
@@ -89,10 +86,9 @@ class Dense(Layer):
         self.dropout = dropout
         self.weight_init = weight_init
 
-    def _setup_layer(self, input_: np.ndarray) -> None:
+    def _setup_layer(self, input_: ndarray) -> None:
         np.random.seed(self.seed)
         num_in = input_.shape[1]
-        # if self.weight_init not in ["xavier", "he"]:
 
         if self.weight_init == "glorot":
             scale = 2/(num_in + self.neurons)
@@ -128,21 +124,35 @@ class Conv2D(Layer):
     def __init__(self,
                  out_channels: int,
                  param_size: int,
-                 activation: Operation = Sigmoid(),
+                 dropout: int = 1.0,
+                 weight_init: str = "normal",
+                 activation: Operation = Linear(),
                  flatten: bool = False) -> None:
         super().__init__(out_channels)
         self.param_size = param_size
         self.activation = activation
         self.flatten = flatten
+        self.dropout = dropout
+        self.weight_init = weight_init
         self.out_channels = out_channels
 
-    def _setup_layer(self, input_: np.ndarray) -> ndarray:
+    def _setup_layer(self, input_: ndarray) -> ndarray:
 
         self.params = []
-        conv_param = np.random.randn(input_.shape[1],  # input channels
+        in_channels = input_.shape[1]
+
+        if self.weight_init == "glorot":
+            scale = 2/(in_channels + self.out_channels)
+        else:
+            scale = 1.0
+
+        conv_param = np.random.normal(loc=0,
+                                      scale=scale,
+                                      size=(input_.shape[1],  # input channels
                                      self.out_channels,
                                      self.param_size,
-                                     self.param_size)
+                                     self.param_size))
+
         self.params.append(conv_param)
 
         self.operations = []
@@ -151,5 +161,8 @@ class Conv2D(Layer):
 
         if self.flatten:
             self.operations.append(Flatten())
+
+        if self.dropout < 1.0:
+            self.operations.append(Dropout(self.dropout))
 
         return None

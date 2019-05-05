@@ -1,13 +1,12 @@
 import numpy as np
 
-
 class Optimizer(object):
     def __init__(self,
                  lr: float = 0.01,
                  final_lr: float = 0,
                  decay_type: str = None) -> None:
         self.lr = lr
-        self.final_lr = final_lr  # TODO: make decay_type mandatory if final_lr specified
+        self.final_lr = final_lr
         self.decay_type = decay_type
         self.first = True
 
@@ -55,8 +54,6 @@ class SGD(Optimizer):
 
         update = self.lr*kwargs['grad']
         kwargs['param'] -= update
-
-
 
 class SGDMomentum(Optimizer):
     def __init__(self,
